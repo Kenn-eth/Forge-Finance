@@ -1,0 +1,20 @@
+# Foundry (smart contracts)
+contracts/lib/
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+
+# Node.js (frontend + backend)
+node_modules/
+dist/
+build/
+.next/
+.env
+.env.local
+
+# OS/system files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
