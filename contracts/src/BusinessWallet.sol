@@ -22,21 +22,9 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-
-/// @notice Interface for KYC verification
-interface IKYCRegistry {
-    function isVerified(address _addr) external view returns (bool);
-}
-
-/// @notice Interface for invoice token factory
-interface IInvoiceTokenFactory {
-    function mintInvoice(bytes calldata metadataCid, address beneficiary, uint256 amount) external returns (address tokenAddress);
-}
-
-/// @notice Interface for marketplace
-interface IMarketplace {
-    function createListing(address token, uint256 tokenId, uint256 price) external;
-}
+import "./interfaces/IKYCRegistry.sol";
+import "./interfaces/IInvoiceTokenFactory.sol";
+import "./interfaces/IMarketplace.sol";
 
 /**
  * @title BusinessWallet
