@@ -14,10 +14,65 @@ interface IKYCRegistry {
         TIER2
     }
 
+    /// business info struct
+    struct BusinessInfo {
+        string name;
+        string registrationNumber;
+        string businessType;
+        string taxId;
+        string email;
+        string website;
+        bytes32 physicalAddressHash;
+        string jurisdiction;
+        string sector;
+        uint256 dateOfIncorporation;
+        address owner;
+        bool isVerified;
+        uint256 kycExpiry;
+        uint256 registeredAt;
+        // Additional SME-relevant fields
+        string phoneNumber;
+        string description;
+        string[] socialLinks;
+        uint256 numberOfEmployees;
+        uint256 annualRevenue;
+        string legalStructure;
+        address[] directors;
+        string[] licenseNumbers;
+        string[] licenseTypes;
+        uint256[] licenseExpiries;
+        string bankName;
+        string bankAccountNumber;
+        string bankVerificationNumber;
+        string logoUrl;
+        bytes32[] additionalDocHashes;
+    }
+
+    struct InvestorInfo {
+        string fullName;
+        string email;
+        string phoneNumber;
+        string nationality;
+        string residentialAddress;
+        uint256 dateOfBirth;
+        string governmentIdNumber;
+        string occupation;
+        uint256 kycExpiry;
+        uint256 registeredAt;
+        bool isVerified;
+    }
+
     // Events
+    /// @notice Event emitted when a user is registered
+    /// @param user Address of the user
+    /// @param role Role of the user
+    /// @param tier Tier of the user
+    /// @param expiry Expiry date of the user
+    /// @param jurisdiction Jurisdiction of the user
+    /// @param docHash Document hash
     event UserRegistered(
-        address indexed user,
-        Role role,
+        address indexed user, /// address of the user
+        Role role, /// role of the user
         Tier tier,
         uint256 expiry,
         string jurisdiction,
@@ -32,33 +87,39 @@ interface IKYCRegistry {
     event KYCExpired(address indexed user);
 
     // Registration & Revocation
+    /// @notice Register a business
+    /// @param businessInfo Business information
+    /// @param docHash Document hash
+    /// @return Address of the business
     function registerBusiness(
-        address user,
-        Tier tier,
-        uint256 expiry,
-        string calldata jurisdiction,
+        BusinessInfo calldata businessInfo,
         bytes32 docHash
-    ) external;
+    ) external returns (address);
+
+    /// @notice Register an investor
+    /// @param investorInfo Investor information
+    /// @param docHash Document hash
+    /// @return Address of the investor
     function registerInvestor(
-        address user,
-        Tier tier,
-        uint256 expiry,
-        string calldata jurisdiction,
+        InvestorInfo calldata investorInfo,
         bytes32 docHash
-    ) external;
-    function batchRegister(
-        address[] calldata users,
-        Role[] calldata roles,
-        Tier[] calldata tiers,
-        uint256[] calldata expiries,
-        string[] calldata jurisdictions,
-        bytes32[] calldata docHashes
-    ) external;
+    ) external returns (address);
+
+    /// @notice Revoke a user
+    /// @param user Address of the user
+    /// @param reason Reason for revocation
+    /// @param docHash Document hash
     function revokeUser(
         address user,
         string calldata reason,
         bytes32 docHash
     ) external;
+
+    /// @notice Renew a user's KYC
+    /// @param user Address of the user
+    /// @param newTier New tier
+    /// @param newExpiry New expiry date
+    /// @param docHash Document hash
     function renewKYC(
         address user,
         Tier newTier,
