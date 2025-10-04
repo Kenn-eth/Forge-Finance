@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+/**
+ * @title IKYCRegistry
+ * @notice Interface for KYC verification registry
+ * @dev Used by BusinessWallet to verify business addresses for compliance
+ */
 interface IKYCRegistry {
     // Roles
     enum Role {
@@ -128,6 +133,7 @@ interface IKYCRegistry {
     ) external;
 
     // Query
+    function isVerified(address user) external view returns (bool);
     function isVerifiedBusiness(address user) external view returns (bool);
     function isVerifiedInvestor(address user) external view returns (bool);
     function getUserRole(address user) external view returns (Role);
