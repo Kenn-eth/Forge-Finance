@@ -33,13 +33,21 @@ contract BusinessWalletFactory is Ownable {
        ============================ */
 
     /// @notice Predict the wallet address for a given salt + initData
-    function computeAddress(bytes32 salt, bytes memory initData) public view returns (address predicted) {
+    function computeAddress(
+        bytes32 salt,
+        bytes memory initData
+    ) public view returns (address predicted) {
         bytes memory bytecode = abi.encodePacked(
             type(ERC1967Proxy).creationCode,
             abi.encode(implementation, initData)
         );
         bytes32 hash = keccak256(
-            abi.encodePacked(bytes1(0xff), address(this), salt, keccak256(bytecode))
+            abi.encodePacked(
+                bytes1(0xff),
+                address(this),
+                salt,
+                keccak256(bytecode)
+            )
         );
         predicted = address(uint160(uint256(hash)));
     }
@@ -47,11 +55,14 @@ contract BusinessWalletFactory is Ownable {
     /* ============================
        Wallet Deployment (Self-Serve)
        ============================ */
-
+    /// @TopBoy, question: why is the newly created wallet not initialized?
     /// @notice Deploy a wallet for msg.sender (business user) deterministically
     /// @param salt Deterministic salt (server-generated)
     /// @param initData Encoded initializer for BusinessWallet.initialize(...)
-    function createWallet(bytes32 salt, bytes memory initData) external returns (address walletAddr) {
+    function createWallet(
+        bytes32 salt,
+        bytes memory initData
+    ) external returns (address walletAddr) {
         address owner = msg.sender;
         require(owner != address(0), "owner-zero");
         require(businessToWallet[owner] == address(0), "wallet-exists");
@@ -64,7 +75,9 @@ contract BusinessWalletFactory is Ownable {
 
         assembly {
             walletAddr := create2(0, add(bytecode, 0x20), mload(bytecode), salt)
-            if iszero(walletAddr) { revert(0, 0) }
+            if iszero(walletAddr) {
+                revert(0, 0)
+            }
         }
 
         // Save mappings
@@ -94,7 +107,10 @@ contract BusinessWalletFactory is Ownable {
     }
 
     /// @notice Compute predicted wallet address using standard parameters
-    function computeWalletAddress(bytes32 salt, address owner) external view returns (address) {
+    function computeWalletAddress(
+        bytes32 salt,
+        address owner
+    ) external view returns (address) {
         bytes memory initData = buildInitData(owner);
         return computeAddress(salt, initData);
     }

@@ -10,13 +10,18 @@ interface IKYCRegistry {
     // Roles
     enum Role {
         NONE,
-        BUSINESS,
-        INVESTOR
+        INVESTOR,
+        BUSINESS
     }
     enum Tier {
         NONE,
         TIER1,
         TIER2
+    }
+    struct User {
+        Role role;
+        bool verified;
+        bytes32 kycHash; // Hash of offchain KYC data
     }
 
     /// business info struct

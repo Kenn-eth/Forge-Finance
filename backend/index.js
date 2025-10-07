@@ -1,6 +1,9 @@
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
+const { keccak256 } = require('js-sha3');
+const { ethers } = require('ethers');
+require('dotenv').config();
 
 const app = express();
 const db = new sqlite3.Database('kyc.db');
@@ -21,6 +24,19 @@ db.run(`
   )
 `);
 
+// Load contract config from environment variables
+const KYC_CONTRACT_ADDRESS = process.env.KYC_CONTRACT_ADDRESS;
+const KYC_CONTRACT_ABI = require('./KYCRegistry.abi.json'); // Place ABI JSON in backend dir
+const ADMIN_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY;
+const ETH_RPC_URL = process.env.ETH_RPC_URL;
+
+let contract, wallet;
+if (KYC_CONTRACT_ADDRESS && ADMIN_PRIVATE_KEY && ETH_RPC_URL) {
+  const provider = new ethers.JsonRpcProvider(ETH_RPC_URL);
+  wallet = new ethers.Wallet(ADMIN_PRIVATE_KEY, provider);
+  contract = new ethers.Contract(KYC_CONTRACT_ADDRESS, KYC_CONTRACT_ABI, wallet);
+}
+
 // Endpoint to submit KYC data
 app.post('/kyc', (req, res) => {
   const { address, data } = req.body;
@@ -37,21 +53,34 @@ app.post('/kyc', (req, res) => {
   );
 });
 
-// Endpoint to verify KYC
-app.post('/kyc/verify', (req, res) => {
+// Endpoint to verify KYC and call contract
+app.post('/kyc/verify', async (req, res) => {
   const { address } = req.body;
   if (!address) {
     return res.status(400).json({ error: 'Address is required.' });
   }
-  db.run(
-    'UPDATE kyc SET verified = 1 WHERE address = ?',
-    [address],
-    function (err) {
-      if (err) return res.status(500).json({ error: err.message });
-      if (this.changes === 0) return res.status(404).json({ error: 'Address not found.' });
-      res.json({ success: true });
+  db.get('SELECT data FROM kyc WHERE address = ?', [address], async (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Address not found.' });
+    try {
+      // Hash the KYC data with address merged
+      const kycData = JSON.parse(row.data);
+      const kycHash = '0x' + keccak256(JSON.stringify({ address, ...kycData }));
+      // Call the contract's verifyUser
+      if (!contract) {
+        return res.status(500).json({ error: 'Contract not configured.' });
+      }
+      const tx = await contract.verifyUser(address, kycHash);
+      await tx.wait();
+      // Mark as verified in DB
+      db.run('UPDATE kyc SET verified = 1 WHERE address = ?', [address], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, txHash: tx.hash });
+      });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
     }
-  );
+  });
 });
 
 // Endpoint to check KYC status
