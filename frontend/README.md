@@ -1,36 +1,168 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Crowdfunding DApp Frontend
+
+A modern, responsive frontend for the decentralized crowdfunding platform built with Next.js, TypeScript, and Tailwind CSS.
+
+## Features
+
+- 🔗 **Wallet Integration**: Connect with Coinbase Wallet and other Web3 wallets via RainbowKit
+- 📝 **User Registration**: Complete KYC registration for both investors and businesses
+- 🏦 **Smart Wallet Generation**: Automatic smart wallet creation after successful registration
+- 🎨 **Modern UI**: Beautiful, responsive design with dark mode support
+- ⚡ **Real-time Updates**: Live transaction status and registration updates
+
+## Tech Stack
+
+- **Framework**: Next.js 15 with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Web3**: Wagmi v2 + RainbowKit
+- **Blockchain**: Base Network (Ethereum L2)
+- **State Management**: React Query (TanStack Query)
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+ 
+- npm or yarn
+- A WalletConnect Project ID (get from [WalletConnect Cloud](https://cloud.walletconnect.com/))
+
+### Installation
+
+1. Install dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Set up environment variables:
+```bash
+cp .env.example .env.local
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Update `.env.local` with your configuration:
+```env
+# Wallet Connect Project ID
+NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=your_project_id_here
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Contract Addresses (replace with actual deployed addresses)
+NEXT_PUBLIC_KYC_CONTRACT_ADDRESS=0x...
+NEXT_PUBLIC_BUSINESS_WALLET_FACTORY_ADDRESS=0x...
+```
 
-## Learn More
+4. Start the development server:
+```bash
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Usage
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### For Users
 
-## Deploy on Vercel
+1. **Connect Wallet**: Click the "Connect Wallet" button and select your preferred wallet (Coinbase Wallet recommended)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+2. **Choose Role**: Select whether you want to register as an Investor or Business
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+3. **Complete Registration**: Fill out the required information form
+
+4. **Submit**: Click "Complete Registration & Generate Smart Wallet" to submit your registration
+
+5. **Verification**: Wait for KYC verification (handled by admin)
+
+### For Developers
+
+#### Project Structure
+
+```
+src/
+├── app/                 # Next.js App Router pages
+│   ├── layout.tsx      # Root layout with providers
+│   ├── page.tsx        # Home page
+│   └── globals.css     # Global styles
+├── components/         # React components
+│   ├── Hero.tsx        # Landing page hero section
+│   ├── RegistrationForm.tsx # User registration form
+│   └── providers.tsx   # Web3 providers wrapper
+└── lib/               # Utility libraries
+    ├── contracts.ts    # Contract addresses and ABIs
+    ├── ipfs.ts        # IPFS utilities (mock implementation)
+    └── wagmi.ts       # Wagmi configuration
+```
+
+#### Key Components
+
+- **Hero**: Landing page for unconnected users
+- **RegistrationForm**: Complete registration flow with role selection
+- **Providers**: Web3 provider setup with RainbowKit
+
+#### Contract Integration
+
+The app integrates with the KYC Registry contract for user registration:
+
+```typescript
+// Register a user with a specific role
+writeContract({
+  address: CONTRACTS.KYC_REGISTRY,
+  abi: KYC_REGISTRY_ABI,
+  functionName: 'registerUser',
+  args: [roleValue], // USER_ROLES.INVESTOR or USER_ROLES.BUSINESS
+});
+```
+
+#### Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID` | WalletConnect project ID | Yes |
+| `NEXT_PUBLIC_KYC_CONTRACT_ADDRESS` | KYC Registry contract address | Yes |
+| `NEXT_PUBLIC_BUSINESS_WALLET_FACTORY_ADDRESS` | Business Wallet Factory address | Yes |
+
+## Development
+
+### Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint
+
+### Adding New Features
+
+1. Create components in `src/components/`
+2. Add contract interactions in `src/lib/contracts.ts`
+3. Update types and interfaces as needed
+4. Test with different wallet connections
+
+## Deployment
+
+### Vercel (Recommended)
+
+1. Push your code to GitHub
+2. Connect your repository to Vercel
+3. Set environment variables in Vercel dashboard
+4. Deploy automatically on push
+
+### Other Platforms
+
+The app can be deployed to any platform that supports Next.js:
+- Netlify
+- AWS Amplify
+- Railway
+- DigitalOcean App Platform
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.
+
+## Support
+
+For support, please open an issue in the GitHub repository or contact the development team.

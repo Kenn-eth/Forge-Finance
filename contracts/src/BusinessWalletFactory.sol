@@ -23,7 +23,7 @@ contract BusinessWalletFactory is Ownable {
     event WalletCreated(address indexed owner, address wallet, bytes32 salt);
     event ImplementationUpdated(address newImplementation);
 
-    constructor(address _implementation) {
+    constructor(address _implementation) Ownable(msg.sender) {
         require(_implementation != address(0), "impl-zero");
         implementation = _implementation;
     }
@@ -55,7 +55,6 @@ contract BusinessWalletFactory is Ownable {
     /* ============================
        Wallet Deployment (Self-Serve)
        ============================ */
-    /// @TopBoy, question: why is the newly created wallet not initialized?
     /// @notice Deploy a wallet for msg.sender (business user) deterministically
     /// @param salt Deterministic salt (server-generated)
     /// @param initData Encoded initializer for BusinessWallet.initialize(...)
