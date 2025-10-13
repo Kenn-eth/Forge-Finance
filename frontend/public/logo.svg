@@ -1,0 +1,87 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Professional gradients for enterprise feel -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#16213e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0f3460;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="letterGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#0099cc;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#006699;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6b35;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f7931e;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="tokenGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e8e8e8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c0c0c0;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="200" height="200" fill="url(#bgGradient)"/>
+  
+  <!-- Main F letters -->
+  <g transform="translate(100, 100)">
+    <!-- First F -->
+    <g transform="translate(-30, -40)">
+      <!-- Vertical line -->
+      <rect x="0" y="0" width="8" height="80" fill="url(#letterGradient)" rx="2"/>
+      <!-- Top horizontal line -->
+      <rect x="0" y="0" width="50" height="8" fill="url(#letterGradient)" rx="2"/>
+      <!-- Middle horizontal line -->
+      <rect x="0" y="36" width="35" height="8" fill="url(#letterGradient)" rx="2"/>
+    </g>
+    
+    <!-- Second F -->
+    <g transform="translate(30, -40)">
+      <!-- Vertical line -->
+      <rect x="0" y="0" width="8" height="80" fill="url(#letterGradient)" rx="2"/>
+      <!-- Top horizontal line -->
+      <rect x="0" y="0" width="50" height="8" fill="url(#letterGradient)" rx="2"/>
+      <!-- Middle horizontal line -->
+      <rect x="0" y="36" width="35" height="8" fill="url(#letterGradient)" rx="2"/>
+    </g>
+  </g>
+  
+  <!-- Tokenization elements - small tokens around the letters -->
+  <g opacity="0.8">
+    <!-- Token 1 (top left) -->
+    <circle cx="50" cy="50" r="8" fill="url(#tokenGradient)" stroke="url(#accentGradient)" stroke-width="2"/>
+    <text x="50" y="55" font-family="Arial, sans-serif" font-size="10" font-weight="bold" text-anchor="middle" fill="#ff6b35">T</text>
+    
+    <!-- Token 2 (top right) -->
+    <circle cx="150" cy="50" r="8" fill="url(#tokenGradient)" stroke="url(#accentGradient)" stroke-width="2"/>
+    <text x="150" y="55" font-family="Arial, sans-serif" font-size="10" font-weight="bold" text-anchor="middle" fill="#ff6b35">T</text>
+    
+    <!-- Token 3 (bottom left) -->
+    <circle cx="50" cy="150" r="8" fill="url(#tokenGradient)" stroke="url(#accentGradient)" stroke-width="2"/>
+    <text x="50" y="155" font-family="Arial, sans-serif" font-size="10" font-weight="bold" text-anchor="middle" fill="#ff6b35">T</text>
+    
+    <!-- Token 4 (bottom right) -->
+    <circle cx="150" cy="150" r="8" fill="url(#tokenGradient)" stroke="url(#accentGradient)" stroke-width="2"/>
+    <text x="150" y="155" font-family="Arial, sans-serif" font-size="10" font-weight="bold" text-anchor="middle" fill="#ff6b35">T</text>
+  </g>
+  
+  <!-- Connection lines showing tokenization process -->
+  <g stroke="url(#accentGradient)" stroke-width="1.5" opacity="0.5">
+    <line x1="58" y1="50" x2="82" y2="70"/>
+    <line x1="142" y1="50" x2="118" y2="70"/>
+    <line x1="58" y1="150" x2="82" y2="130"/>
+    <line x1="142" y1="150" x2="118" y2="130"/>
+  </g>
+  
+  <!-- Subtle geometric accent dots -->
+  <g opacity="0.3">
+    <circle cx="100" cy="30" r="2" fill="url(#accentGradient)"/>
+    <circle cx="100" cy="170" r="2" fill="url(#accentGradient)"/>
+    <circle cx="30" cy="100" r="2" fill="url(#accentGradient)"/>
+    <circle cx="170" cy="100" r="2" fill="url(#accentGradient)"/>
+  </g>
+</svg>
