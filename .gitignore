@@ -18,3 +18,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Deleted contracts (moved to simplify project)
+contracts/src/deleted/

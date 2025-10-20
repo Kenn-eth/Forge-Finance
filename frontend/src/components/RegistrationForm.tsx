@@ -1,12 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
 import { CONTRACTS, KYC_REGISTRY_ABI, USER_ROLES } from '@/lib/contracts';
 import { uploadToIPFS, uploadDocumentMetadata, generateDocumentHash } from '@/lib/ipfs';
 import { WalletDashboard } from './WalletDashboard';
 
-export function RegistrationForm() {
+interface RegistrationFormProps {
+  onComplete?: (role: 'INVESTOR' | 'BUSINESS') => void;
+  forceShowForm?: boolean; // If true, always show the form regardless of registration status
+}
+
+export function RegistrationForm({ onComplete, forceShowForm = false }: RegistrationFormProps = {}) {
   const { address } = useAccount();
   const [role, setRole] = useState<'INVESTOR' | 'BUSINESS'>('INVESTOR');
   const [isLoading, setIsLoading] = useState(false);
@@ -39,20 +44,44 @@ export function RegistrationForm() {
     hash,
   });
 
+  // Handle successful registration
+  if (isSuccess && !showDashboard) {
+    setShowDashboard(true);
+    if (onComplete) {
+      onComplete(role);
+    }
+  }
+
   // Check if user is already registered
-  const { data: userRole, refetch: refetchUserRole } = useReadContract({
+  const { data: isBusiness, refetch: refetchIsBusiness } = useReadContract({
     address: CONTRACTS.KYC_REGISTRY,
     abi: KYC_REGISTRY_ABI,
-    functionName: 'getUserRole',
+    functionName: 'isBusiness',
+    args: address ? [address] : undefined,
+  });
+
+  const { data: isInvestor, refetch: refetchIsInvestor } = useReadContract({
+    address: CONTRACTS.KYC_REGISTRY,
+    abi: KYC_REGISTRY_ABI,
+    functionName: 'isInvestor',
     args: address ? [address] : undefined,
   });
 
   const { data: isVerified } = useReadContract({
     address: CONTRACTS.KYC_REGISTRY,
     abi: KYC_REGISTRY_ABI,
-    functionName: 'isVerified',
+    functionName: 'isKYCVerified',
     args: address ? [address] : undefined,
   });
+
+  // Auto-select the available role if only one is left
+  useEffect(() => {
+    if (isBusiness && !isInvestor) {
+      setRole('INVESTOR');
+    } else if (isInvestor && !isBusiness) {
+      setRole('BUSINESS');
+    }
+  }, [isBusiness, isInvestor]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -71,7 +100,16 @@ export function RegistrationForm() {
         throw new Error('Wallet not connected');
       }
 
-      // Contracts are deployed, proceed with real registration
+      // Validate required fields based on role
+      if (role === 'BUSINESS') {
+        if (!registrationData.businessName || !registrationData.businessType) {
+          throw new Error('Business name and type are required');
+        }
+      } else {
+        if (!registrationData.fullName || !registrationData.email) {
+          throw new Error('Full name and email are required');
+        }
+      }
 
       // 1. Prepare document metadata
       const documentMetadata = {
@@ -91,14 +129,14 @@ export function RegistrationForm() {
       // 3. Generate document hash
       const docHash = generateDocumentHash([metadataHash], JSON.stringify(registrationData));
 
-      // 4. Call the KYC contract's registerUser function
-      const roleValue = role === 'INVESTOR' ? USER_ROLES.INVESTOR : USER_ROLES.BUSINESS;
+      // 4. Call the KYC contract's registration function
+      const functionName = role === 'INVESTOR' ? 'registerInvestor' : 'registerBusiness';
       
       writeContract({
         address: CONTRACTS.KYC_REGISTRY,
         abi: KYC_REGISTRY_ABI,
-        functionName: 'registerUser',
-        args: [roleValue],
+        functionName: functionName,
+        args: [],
       });
 
       console.log('Registration submitted:', {
@@ -116,9 +154,40 @@ export function RegistrationForm() {
     }
   };
 
-  // Show dashboard if user is registered or after successful registration
-  if ((userRole && userRole !== USER_ROLES.NONE) || showDashboard) {
+  // Show dashboard only after successful registration, not if already registered
+  if (showDashboard) {
     return <WalletDashboard />;
+  }
+
+  // If user is already registered as both, show dashboard (unless forceShowForm is true)
+  if (isBusiness && isInvestor && !forceShowForm) {
+    return (
+      <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg text-center">
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-bold text-green-600 mb-2">Registration Complete!</h2>
+        <p className="text-gray-600 mb-4">
+          You are registered as both an Investor and Business. You can now access all features of the platform.
+        </p>
+        <div className="flex justify-center space-x-4 mb-4">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+            ✓ Investor Registered
+          </span>
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+            ✓ Business Registered
+          </span>
+        </div>
+        <button
+          onClick={() => window.location.href = '/dashboard'}
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+        >
+          Go to Dashboard
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -126,11 +195,33 @@ export function RegistrationForm() {
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-8">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Complete Your Registration
+            {isBusiness || isInvestor ? 'Add Additional Role' : 'Complete Your Registration'}
           </h2>
           <p className="text-gray-600 dark:text-gray-300">
-            Choose your role and provide the required information to get started
+            {isBusiness || isInvestor 
+              ? 'You can register for additional roles to access more features'
+              : 'Choose your role and provide the required information to get started'
+            }
           </p>
+          
+          {/* Show current registration status */}
+          {(isBusiness || isInvestor) && (
+            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <h3 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">Current Registration Status:</h3>
+              <div className="flex justify-center space-x-4">
+                {isBusiness && (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200">
+                    ✓ Business Registered
+                  </span>
+                )}
+                {isInvestor && (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200">
+                    ✓ Investor Registered
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
           <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
             <p className="text-green-800 dark:text-green-200 text-sm">
               ✅ <strong>Live Mode:</strong> Connected to Anvil local blockchain. Real smart contracts deployed!
@@ -146,41 +237,75 @@ export function RegistrationForm() {
           <div className="grid grid-cols-2 gap-4">
             <button
               type="button"
-              onClick={() => setRole('INVESTOR')}
+              onClick={() => !isInvestor && setRole('INVESTOR')}
+              disabled={isInvestor}
               className={`p-4 rounded-lg border-2 transition-colors ${
                 role === 'INVESTOR'
                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                  : isInvestor
+                  ? 'border-green-300 bg-green-50 dark:bg-green-900/20 cursor-not-allowed'
                   : 'border-gray-300 dark:border-gray-600 hover:border-gray-400'
               }`}
             >
               <div className="text-center">
-                <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-2">
-                  <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                  </svg>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 ${
+                  isInvestor 
+                    ? 'bg-green-100 dark:bg-green-900' 
+                    : 'bg-green-100 dark:bg-green-900'
+                }`}>
+                  {isInvestor ? (
+                    <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                    </svg>
+                  )}
                 </div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">Investor</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">Invest in projects</p>
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  Investor {isInvestor && '✓'}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  {isInvestor ? 'Already registered' : 'Invest in projects'}
+                </p>
               </div>
             </button>
             
             <button
               type="button"
-              onClick={() => setRole('BUSINESS')}
+              onClick={() => !isBusiness && setRole('BUSINESS')}
+              disabled={isBusiness}
               className={`p-4 rounded-lg border-2 transition-colors ${
                 role === 'BUSINESS'
                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                  : isBusiness
+                  ? 'border-green-300 bg-green-50 dark:bg-green-900/20 cursor-not-allowed'
                   : 'border-gray-300 dark:border-gray-600 hover:border-gray-400'
               }`}
             >
               <div className="text-center">
-                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-2">
-                  <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 ${
+                  isBusiness 
+                    ? 'bg-green-100 dark:bg-green-900' 
+                    : 'bg-blue-100 dark:bg-blue-900'
+                }`}>
+                  {isBusiness ? (
+                    <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  )}
                 </div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">Business</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">Raise funds</p>
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  Business {isBusiness && '✓'}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  {isBusiness ? 'Already registered' : 'Raise funds'}
+                </p>
               </div>
             </button>
           </div>
@@ -512,7 +637,7 @@ export function RegistrationForm() {
                   {isConfirming ? 'Confirming...' : 'Processing...'}
                 </div>
               ) : (
-                'Complete Registration & Generate Smart Wallet'
+                'Complete Registration'
               )}
             </button>
           </div>
@@ -528,16 +653,21 @@ export function RegistrationForm() {
           {isSuccess && (
             <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
               <p className="text-green-600 dark:text-green-400 text-sm mb-3">
-                Registration successful! Your smart wallet has been generated.
+                Registration successful! Your account has been created.
               </p>
               <button
                 onClick={() => {
-                  setShowDashboard(true);
-                  refetchUserRole();
+                  if (onComplete) {
+                    onComplete(role);
+                  } else {
+                    setShowDashboard(true);
+                    refetchIsBusiness();
+                    refetchIsInvestor();
+                  }
                 }}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
               >
-                View Wallet Dashboard
+                {onComplete ? 'Continue to KYC Verification' : 'View Dashboard'}
               </button>
             </div>
           )}

@@ -14,7 +14,7 @@ export function Hero() {
         </h1>
         
         <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
-          Join the future of crowdfunding. Connect your wallet to start raising funds or investing in innovative projects with complete transparency and security.
+          Join the future of invoice financing. Connect your wallet to start raising funds or investing in invoice tokens with complete transparency and security.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">

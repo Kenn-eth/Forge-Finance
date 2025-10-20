@@ -10,31 +10,38 @@ export function WalletDashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   // Get user role and verification status
-  const { data: userRole, refetch: refetchUserRole } = useReadContract({
+  const { data: isBusiness, refetch: refetchIsBusiness } = useReadContract({
     address: CONTRACTS.KYC_REGISTRY,
     abi: KYC_REGISTRY_ABI,
-    functionName: 'getUserRole',
+    functionName: 'isBusiness',
+    args: address ? [address] : undefined,
+  });
+
+  const { data: isInvestor, refetch: refetchIsInvestor } = useReadContract({
+    address: CONTRACTS.KYC_REGISTRY,
+    abi: KYC_REGISTRY_ABI,
+    functionName: 'isInvestor',
     args: address ? [address] : undefined,
   });
 
   const { data: isVerified, refetch: refetchIsVerified } = useReadContract({
     address: CONTRACTS.KYC_REGISTRY,
     abi: KYC_REGISTRY_ABI,
-    functionName: 'isVerified',
+    functionName: 'isKYCVerified',
     args: address ? [address] : undefined,
   });
 
   useEffect(() => {
     if (address) {
-      // For now, we'll use the user's EOA as the wallet address
-      // In a real implementation, this would be the generated smart wallet address
+      // Use the user's EOA address directly
       setWalletAddress(address);
       setIsLoading(false);
     }
   }, [address]);
 
   const handleRefresh = () => {
-    refetchUserRole();
+    refetchIsBusiness();
+    refetchIsInvestor();
     refetchIsVerified();
   };
 
@@ -58,10 +65,10 @@ export function WalletDashboard() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Smart Wallet Dashboard
+              User Dashboard
             </h1>
             <p className="text-gray-600 dark:text-gray-300 mt-1">
-              Manage your {userRole === USER_ROLES.INVESTOR ? 'investor' : 'business'} wallet
+              Manage your {isInvestor ? 'investor' : 'business'} account
             </p>
           </div>
           <button
@@ -87,8 +94,8 @@ export function WalletDashboard() {
               </svg>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Smart Wallet</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Your generated wallet address</p>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Wallet Address</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300">Your connected wallet address</p>
             </div>
           </div>
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
@@ -129,7 +136,7 @@ export function WalletDashboard() {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-300">Role</p>
               <p className="text-lg font-semibold text-gray-900 dark:text-white capitalize">
-                {userRole === USER_ROLES.INVESTOR ? 'Investor' : 'Business'}
+                {isInvestor ? 'Investor' : 'Business'}
               </p>
             </div>
           </div>
@@ -139,7 +146,7 @@ export function WalletDashboard() {
       {/* Action Cards */}
       <div className="grid md:grid-cols-3 gap-6">
         {/* For Investors */}
-        {userRole === USER_ROLES.INVESTOR && (
+        {isInvestor && (
           <>
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
               <div className="text-center">
@@ -195,7 +202,7 @@ export function WalletDashboard() {
         )}
 
         {/* For Businesses */}
-        {userRole === USER_ROLES.BUSINESS && (
+        {isBusiness && (
           <>
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
               <div className="text-center">
@@ -206,7 +213,7 @@ export function WalletDashboard() {
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Create Campaign</h3>
                 <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
-                  Launch a new crowdfunding campaign
+                  Create a new invoice token
                 </p>
                 <button className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
                   Start Campaign
@@ -263,7 +270,7 @@ export function WalletDashboard() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-medium text-gray-900 dark:text-white">Wallet Created</p>
-              <p className="text-xs text-gray-600 dark:text-gray-300">Smart wallet successfully generated</p>
+              <p className="text-xs text-gray-600 dark:text-gray-300">Wallet successfully connected</p>
             </div>
             <span className="text-xs text-gray-500 dark:text-gray-400">Just now</span>
           </div>

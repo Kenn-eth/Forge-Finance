@@ -60,7 +60,6 @@ contract SimpleKYCRegistry is
     function initialize(
         address admin,
         address kycAuthority,
-        address businessWalletFactory /// @audit to be removed
     ) public initializer {
         __AccessControl_init();
         __UUPSUpgradeable_init();
@@ -71,7 +70,6 @@ contract SimpleKYCRegistry is
         _grantRole(KYC_AUTHORITY_ROLE, kycAuthority);
 
         _kycAuthority = kycAuthority;
-        _businessWalletFactory = businessWalletFactory; /// @audit to be removed
     }
 
     // Register user (simplified version)
