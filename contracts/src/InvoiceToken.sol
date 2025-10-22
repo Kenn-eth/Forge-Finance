@@ -6,6 +6,7 @@ import {AccessControlUpgradeable} from "@openzeppelin-upgradeable/contracts/acce
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ERC1155BurnableUpgradeable} from "@openzeppelin-upgradeable/contracts/token/ERC1155/extensions/ERC1155BurnableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin-upgradeable/contracts/utils/ReentrancyGuardUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IKYCRegistry} from "./interfaces/IKYCRegistry.sol";
@@ -32,6 +33,7 @@ contract InvoiceTokenVault is
     AccessControlUpgradeable,
     ERC1155BurnableUpgradeable,
     ReentrancyGuardUpgradeable,
+    UUPSUpgradeable,
     IERC1155Receiver
 {
     IKYCRegistry KYCRegistry;
@@ -112,6 +114,7 @@ contract InvoiceTokenVault is
         __AccessControl_init();
         // ERC1155Burnable doesn't need initialization
         __ReentrancyGuard_init();
+        __UUPSUpgradeable_init();
         KYCRegistry = IKYCRegistry(kyc);
         _grantRole(DEFAULT_ADMIN_ROLE, admin); // makes admin the top-level role
         _grantRole(BURNER_ROLE, admin);
@@ -134,7 +137,7 @@ contract InvoiceTokenVault is
         uint256 campaignDuration,
         uint256 maturityDate,
         bytes memory data
-    ) external nonReentrant {
+    ) external returns (uint256 id) /*nonReentrant*/ {
         /// @audit this fn should return a value
         require(invoiceValue > 0, "Invoice: zero amount");
         require(
@@ -172,15 +175,15 @@ contract InvoiceTokenVault is
             data: data
         });
 
+        id = nonce++;
         // Store invoice details
-        idToInvoiceDetails[nonce] = invoiceDetails;
+        idToInvoiceDetails[id] = invoiceDetails;
 
-        _mint(address(this), nonce, totalSupply, data);
-        idToOwner[nonce] = msg.sender;
-        ownerToIds[msg.sender].push(nonce);
-        nonce++;
+        _mint(address(this), id, totalSupply, data);
+        idToOwner[id] = msg.sender;
+        ownerToIds[msg.sender].push(id);
 
-        emit InvoiceMinted(msg.sender, nonce - 1, totalSupply, "");
+        emit InvoiceMinted(msg.sender, id, totalSupply, "");
     }
 
     function withdrawInvoiceLoan(uint256 id) external {
@@ -319,5 +322,17 @@ contract InvoiceTokenVault is
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
+    }
+
+    /**
+     * @dev Function that should revert when `msg.sender` is not authorized to upgrade the contract.
+     * Called by {upgradeToAndCall}.
+     *
+     * Requires DEFAULT_ADMIN_ROLE to authorize upgrades.
+     */
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyRole(DEFAULT_ADMIN_ROLE) {
+        // Only admin can upgrade
     }
 }

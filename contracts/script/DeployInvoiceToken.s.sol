@@ -12,8 +12,8 @@ contract DeployInvoiceToken is Script {
         address deployer = vm.addr(deployerPrivateKey);
 
         // Get contract addresses from environment
-        address kycRegistry = vm.envAddress("KYC_REGISTRY_ADDRESS");
-        address usdcToken = vm.envAddress("USDC_ADDRESS");
+        address kycRegistry = vm.envAddress("KYC_REGISTRY_ADDRESS"); /// gets the kyc registry address
+        address usdcToken = vm.envAddress("USDC_ADDRESS"); /// gets the usdc token address
 
         console.log("Deploying contracts with account:", deployer);
         console.log("Account balance:", deployer.balance);
