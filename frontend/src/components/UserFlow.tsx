@@ -228,7 +228,7 @@ export function UserFlow() {
               { step: 'register', label: 'Register' },
               { step: 'verify', label: 'Verify' },
               { step: 'complete', label: 'Complete' }
-            ].map((item, index) => {
+            ].map((item) => {
               const isActive = currentStep === item.step;
               const isCompleted = ['connect', 'register', 'verify'].indexOf(currentStep) > ['connect', 'register', 'verify'].indexOf(item.step);
               

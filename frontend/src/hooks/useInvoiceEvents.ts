@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+// import { useEffect } from 'react';
 import { useWatchContractEvent } from 'wagmi';
 import { CONTRACTS, INVOICE_TOKEN_ABI } from '@/lib/contracts';
 

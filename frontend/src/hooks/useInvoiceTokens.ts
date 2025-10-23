@@ -26,20 +26,20 @@ interface InvoiceTokenData {
   dueDate?: string;
 }
 
-interface InvoiceDetails {
-  loanAmount: bigint;
-  invoiceValue: bigint;
-  unitValue: bigint;
-  createdAt: bigint;
-  createdBy: string;
-  campaignDuration: bigint;
-  campaignEndTime: bigint;
-  maturityDate: bigint;
-  tokenSupply: bigint;
-  availableSupply: bigint;
-  isFulfilled: boolean;
-  data: string;
-}
+// interface InvoiceDetails {
+//   loanAmount: bigint;
+//   invoiceValue: bigint;
+//   unitValue: bigint;
+//   createdAt: bigint;
+//   createdBy: string;
+//   campaignDuration: bigint;
+//   campaignEndTime: bigint;
+//   maturityDate: bigint;
+//   tokenSupply: bigint;
+//   availableSupply: bigint;
+//   isFulfilled: boolean;
+//   data: string;
+// }
 
 export function useInvoiceTokens() {
   const [tokens, setTokens] = useState<InvoiceTokenData[]>([]);

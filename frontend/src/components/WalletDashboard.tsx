@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount, useReadContract } from 'wagmi';
-import { CONTRACTS, KYC_REGISTRY_ABI, USER_ROLES } from '@/lib/contracts';
+import { CONTRACTS, KYC_REGISTRY_ABI } from '@/lib/contracts';
 
 export function WalletDashboard() {
   const { address } = useAccount();

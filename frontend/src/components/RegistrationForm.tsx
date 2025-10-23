@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
-import { CONTRACTS, KYC_REGISTRY_ABI, USER_ROLES } from '@/lib/contracts';
-import { uploadToIPFS, uploadDocumentMetadata, generateDocumentHash } from '@/lib/ipfs';
+import { CONTRACTS, KYC_REGISTRY_ABI } from '@/lib/contracts';
+import { uploadDocumentMetadata, generateDocumentHash } from '@/lib/ipfs';
 import { WalletDashboard } from './WalletDashboard';
 
 interface RegistrationFormProps {
@@ -67,7 +67,7 @@ export function RegistrationForm({ onComplete, forceShowForm = false }: Registra
     args: address ? [address] : undefined,
   });
 
-  const { data: isVerified } = useReadContract({
+  const { } = useReadContract({
     address: CONTRACTS.KYC_REGISTRY,
     abi: KYC_REGISTRY_ABI,
     functionName: 'isKYCVerified',

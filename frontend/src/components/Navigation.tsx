@@ -9,7 +9,7 @@ import { WalletConnection } from './WalletConnection';
 export function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
-  const { address, isConnected } = useAccount();
+  const { } = useAccount();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems = [

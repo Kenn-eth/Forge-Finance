@@ -82,7 +82,7 @@ export function useMarketplaceInvoices() {
         if (details.status !== 'success' || owner.status !== 'success') continue;
 
         // details.result is tuple matching InvoiceDetails struct
-        const r: any = details.result as any;
+        const r: unknown = details.result as unknown;
         // Depending on ABI generation, tuple may be array-like. Access by index for safety
         const loanAmount = (r.loanAmount ?? r[0]) as bigint;
         const invoiceValue = (r.invoiceValue ?? r[1]) as bigint;
@@ -123,7 +123,7 @@ export function useMarketplaceInvoices() {
             if (res.ok) {
               const invoices = await res.json();
               // Find the most recent invoice without a token_id that matches our contract data
-              const matchingInvoice = invoices.find((invoice: any) => 
+              const matchingInvoice = invoices.find((invoice: Record<string, unknown>) => 
                 !invoice.token_id && 
                 parseInt(invoice.invoice_value) === parseInt(inv.invoiceValue) &&
                 parseInt(invoice.loan_amount) === parseInt(inv.loanAmount)
