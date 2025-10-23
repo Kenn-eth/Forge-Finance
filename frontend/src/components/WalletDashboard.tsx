@@ -31,6 +31,10 @@ export function WalletDashboard() {
     args: address ? [address] : undefined,
   });
 
+  // Type the boolean values properly
+  const isInvestorRegistered = Boolean(isInvestor);
+  const isVerifiedStatus = Boolean(isVerified);
+
   useEffect(() => {
     if (address) {
       // Use the user's EOA address directly
@@ -68,7 +72,7 @@ export function WalletDashboard() {
               User Dashboard
             </h1>
             <p className="text-gray-600 dark:text-gray-300 mt-1">
-              Manage your {isInvestor ? 'investor' : 'business'} account
+              Manage your {isInvestorRegistered ? 'investor' : 'business'} account
             </p>
           </div>
           <button
@@ -126,17 +130,17 @@ export function WalletDashboard() {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-300">Status</p>
               <p className={`text-lg font-semibold ${
-                isVerified 
+                isVerifiedStatus 
                   ? 'text-green-600 dark:text-green-400' 
                   : 'text-yellow-600 dark:text-yellow-400'
               }`}>
-                {isVerified ? '✓ Verified' : '⏳ Pending'}
+                {isVerifiedStatus ? '✓ Verified' : '⏳ Pending'}
               </p>
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-300">Role</p>
               <p className="text-lg font-semibold text-gray-900 dark:text-white capitalize">
-                {isInvestor ? 'Investor' : 'Business'}
+                {isInvestorRegistered ? 'Investor' : 'Business'}
               </p>
             </div>
           </div>
@@ -146,7 +150,7 @@ export function WalletDashboard() {
       {/* Action Cards */}
       <div className="grid md:grid-cols-3 gap-6">
         {/* For Investors */}
-        {isInvestor && (
+        {isInvestorRegistered && (
           <>
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
               <div className="text-center">
