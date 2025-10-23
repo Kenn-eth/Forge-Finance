@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAccount } from 'wagmi';
@@ -12,12 +12,12 @@ export function Navigation() {
   const { } = useAccount();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const navItems = [
+  const navItems = useMemo(() => [
     { href: '/', label: 'Home' },
     { href: '/marketplace', label: 'Marketplace' },
     { href: '/create', label: 'Create Invoice' },
     { href: '/dashboard', label: 'Dashboard' },
-  ];
+  ], []);
 
   // Prefetch all routes on mount for instant navigation
   useEffect(() => {

@@ -114,7 +114,6 @@ export function RegistrationForm({ onComplete, forceShowForm = false }: Registra
       // 1. Prepare document metadata
       const documentMetadata = {
         name: `${role.toLowerCase()}_registration_${Date.now()}`,
-        description: `Registration documents for ${role.toLowerCase()}`,
         fileType: 'application/json',
         size: JSON.stringify(registrationData).length,
         uploadedAt: new Date().toISOString(),
