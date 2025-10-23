@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useReadContract, useBlockNumber, usePublicClient } from 'wagmi';
 import { CONTRACTS, INVOICE_TOKEN_ABI } from '@/lib/contracts';
 
@@ -141,6 +141,8 @@ export function useMarketplaceInvoices() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const publicClient = usePublicClient();
+  // Guard against race conditions: only latest fetch can update state
+  const fetchSeqRef = useRef(0);
 
   // Get the current nonce (total number of invoices created)
   const { data: nonce } = useReadContract({
@@ -154,12 +156,22 @@ export function useMarketplaceInvoices() {
 
   const fetchInvoices = useCallback(async () => {
     try {
-      setIsLoading(true);
       setError(null);
 
-      if (!nonce || Number(nonce) === 0 || !publicClient) {
-        setInvoices([]);
+      // Defer fetching until prerequisites are ready; avoid clearing UI to prevent flicker
+      if (nonce === undefined || nonce === null || !publicClient) {
         setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      const seq = ++fetchSeqRef.current;
+
+      if (Number(nonce) === 0) {
+        if (seq === fetchSeqRef.current) {
+          setInvoices([]);
+          setIsLoading(false);
+        }
         return;
       }
 
@@ -268,11 +280,21 @@ export function useMarketplaceInvoices() {
         return inv;
       }));
 
-      setInvoices(merged);
+      // Deduplicate by token id to prevent duplicates appearing in UI
+      const deduped = Array.from(new Map(merged.map((m) => [m.id, m])).values());
+      if (seq === fetchSeqRef.current) {
+        setInvoices(deduped);
+      }
     } catch (err) {
       console.error('Error fetching invoices:', err);
+      // Only set error if this is the latest fetch
       setError(err instanceof Error ? err.message : 'Failed to fetch invoices');
     } finally {
+      // Only flip loading off if this is the latest fetch
+      // If a newer fetch started, let that fetch control loading state
+      setIsLoading((prev) => {
+        return fetchSeqRef.current ? prev : false;
+      });
       setIsLoading(false);
     }
   }, [nonce, publicClient]);
