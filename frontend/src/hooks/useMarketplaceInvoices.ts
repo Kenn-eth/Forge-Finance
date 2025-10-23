@@ -44,7 +44,7 @@ export function useMarketplaceInvoices() {
       setIsLoading(true);
       setError(null);
 
-      if (!nonce || nonce === 0n || !publicClient) {
+      if (!nonce || Number(nonce) === 0 || !publicClient) {
         setInvoices([]);
         setIsLoading(false);
         return;
@@ -84,17 +84,17 @@ export function useMarketplaceInvoices() {
         // details.result is tuple matching InvoiceDetails struct
         const r: unknown = details.result as unknown;
         // Depending on ABI generation, tuple may be array-like. Access by index for safety
-        const loanAmount = (r.loanAmount ?? r[0]) as bigint;
-        const invoiceValue = (r.invoiceValue ?? r[1]) as bigint;
-        const unitValue = (r.unitValue ?? r[2]) as bigint;
-        const createdAt = (r.createdAt ?? r[3]) as bigint;
-        const createdBy = (r.createdBy ?? r[4]) as string;
-        const campaignDuration = (r.campaignDuration ?? r[5]) as bigint;
-        const campaignEndTime = (r.campaignEndTime ?? r[6]) as bigint;
-        const maturityDate = (r.maturityDate ?? r[7]) as bigint;
-        const tokenSupply = (r.tokenSupply ?? r[8]) as bigint;
-        const availableSupply = (r.availableSupply ?? r[9]) as bigint;
-        const isFulfilled = (r.isFulfilled ?? r[10]) as boolean;
+        const loanAmount = (r.loanAmount ?? (r as any)[0]) as bigint;
+        const invoiceValue = (r.invoiceValue ?? (r as any)[1]) as bigint;
+        const unitValue = (r.unitValue ?? (r as any)[2]) as bigint;
+        const createdAt = (r.createdAt ?? (r as any)[3]) as bigint;
+        const createdBy = (r.createdBy ?? (r as any)[4]) as string;
+        const campaignDuration = (r.campaignDuration ?? (r as any)[5]) as bigint;
+        const campaignEndTime = (r.campaignEndTime ?? (r as any)[6]) as bigint;
+        const maturityDate = (r.maturityDate ?? (r as any)[7]) as bigint;
+        const tokenSupply = (r.tokenSupply ?? (r as any)[8]) as bigint;
+        const availableSupply = (r.availableSupply ?? (r as any)[9]) as bigint;
+        const isFulfilled = (r.isFulfilled ?? (r as any)[10]) as boolean;
 
         items.push({
           id: idNum,
@@ -125,16 +125,16 @@ export function useMarketplaceInvoices() {
               // Find the most recent invoice without a token_id that matches our contract data
               const matchingInvoice = invoices.find((invoice: Record<string, unknown>) => 
                 !invoice.token_id && 
-                parseInt(invoice.invoice_value) === parseInt(inv.invoiceValue) &&
-                parseInt(invoice.loan_amount) === parseInt(inv.loanAmount)
+                parseInt(invoice.invoice_value as string) === parseInt(inv.invoiceValue) &&
+                parseInt(invoice.loan_amount as string) === parseInt(inv.loanAmount)
               );
               if (matchingInvoice) {
                 return {
                   ...inv,
-                  invoiceNumber: matchingInvoice.invoice_number,
-                  customerName: matchingInvoice.customer_name,
-                  services: matchingInvoice.services,
-                  description: matchingInvoice.description,
+                  invoiceNumber: (matchingInvoice as any).invoice_number,
+                  customerName: (matchingInvoice as any).customer_name,
+                  services: (matchingInvoice as any).services,
+                  description: (matchingInvoice as any).description,
                 } as Invoice;
               }
             }
