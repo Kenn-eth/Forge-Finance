@@ -54,20 +54,47 @@ interface ExtractedInvoiceDetails {
 
 function extractInvoiceDetails(u: unknown): ExtractedInvoiceDetails | null {
   if (Array.isArray(u) && u.length >= 11) {
-    const a = u as InvoiceDetailsTuple;
-    return {
-      loanAmount: a[0],
-      invoiceValue: a[1],
-      unitValue: a[2],
-      createdAt: a[3],
-      createdBy: a[4],
-      campaignDuration: a[5],
-      campaignEndTime: a[6],
-      maturityDate: a[7],
-      tokenSupply: a[8],
-      availableSupply: a[9],
-      isFulfilled: a[10],
-    };
+    const a = u as readonly unknown[];
+    const [
+      loanAmount,
+      invoiceValue,
+      unitValue,
+      createdAt,
+      createdBy,
+      campaignDuration,
+      campaignEndTime,
+      maturityDate,
+      tokenSupply,
+      availableSupply,
+      isFulfilled,
+    ] = a;
+    if (
+      typeof loanAmount === 'bigint' &&
+      typeof invoiceValue === 'bigint' &&
+      typeof unitValue === 'bigint' &&
+      typeof createdAt === 'bigint' &&
+      typeof createdBy === 'string' &&
+      typeof campaignDuration === 'bigint' &&
+      typeof campaignEndTime === 'bigint' &&
+      typeof maturityDate === 'bigint' &&
+      typeof tokenSupply === 'bigint' &&
+      typeof availableSupply === 'bigint' &&
+      typeof isFulfilled === 'boolean'
+    ) {
+      return {
+        loanAmount,
+        invoiceValue,
+        unitValue,
+        createdAt,
+        createdBy,
+        campaignDuration,
+        campaignEndTime,
+        maturityDate,
+        tokenSupply,
+        availableSupply,
+        isFulfilled,
+      };
+    }
   }
   if (u && typeof u === 'object') {
     const obj = u as Record<string, unknown>;
