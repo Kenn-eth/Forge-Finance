@@ -23,21 +23,6 @@ export interface Invoice {
   description?: string;
 }
 
-// Shape returned by the contract tuple (array form)
-type InvoiceDetailsTuple = readonly [
-  bigint,
-  bigint,
-  bigint,
-  bigint,
-  string,
-  bigint,
-  bigint,
-  bigint,
-  bigint,
-  bigint,
-  boolean
-];
-
 interface ExtractedInvoiceDetails {
   loanAmount: bigint;
   invoiceValue: bigint;

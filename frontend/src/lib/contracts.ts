@@ -1,6 +1,7 @@
 // Contract integration utilities for Invoice Token Marketplace
 import KYCRegistryABI from '../contracts/KYCRegistry.json';
 import InvoiceTokenABI from '../contracts/InvoiceTokenVault.json';
+import type { Abi } from 'viem';
 
 export const INVOICE_TOKEN_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_INVOICE_TOKEN_CONTRACT_ADDRESS || '';
 export const KYC_REGISTRY_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_KYC_REGISTRY_CONTRACT_ADDRESS || '';
@@ -19,10 +20,10 @@ export const USER_ROLES = {
 } as const;
 
 // Contract ABI - Imported from contract artifacts
-export const INVOICE_TOKEN_ABI = InvoiceTokenABI.abi;
+export const INVOICE_TOKEN_ABI: Abi = InvoiceTokenABI.abi as Abi;
 
 // KYC Registry ABI - Imported from contract artifacts
-export const KYC_REGISTRY_ABI = KYCRegistryABI.abi;
+export const KYC_REGISTRY_ABI: Abi = KYCRegistryABI.abi as Abi;
 
 // Types for contract data
 export interface InvoiceDetails {
