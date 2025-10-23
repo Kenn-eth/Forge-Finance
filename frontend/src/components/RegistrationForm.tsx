@@ -67,6 +67,10 @@ export function RegistrationForm({ onComplete, forceShowForm = false }: Registra
     args: address ? [address] : undefined,
   });
 
+  // Type the boolean values properly
+  const isBusinessRegistered = Boolean(isBusiness);
+  const isInvestorRegistered = Boolean(isInvestor);
+
   const { } = useReadContract({
     address: CONTRACTS.KYC_REGISTRY,
     abi: KYC_REGISTRY_ABI,
@@ -76,12 +80,12 @@ export function RegistrationForm({ onComplete, forceShowForm = false }: Registra
 
   // Auto-select the available role if only one is left
   useEffect(() => {
-    if (isBusiness && !isInvestor) {
+    if (isBusinessRegistered && !isInvestorRegistered) {
       setRole('INVESTOR');
-    } else if (isInvestor && !isBusiness) {
+    } else if (isInvestorRegistered && !isBusinessRegistered) {
       setRole('BUSINESS');
     }
-  }, [isBusiness, isInvestor]);
+  }, [isBusinessRegistered, isInvestorRegistered]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -159,7 +163,7 @@ export function RegistrationForm({ onComplete, forceShowForm = false }: Registra
   }
 
   // If user is already registered as both, show dashboard (unless forceShowForm is true)
-  if (isBusiness && isInvestor && !forceShowForm) {
+  if (isBusinessRegistered && isInvestorRegistered && !forceShowForm) {
     return (
       <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg text-center">
         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -194,26 +198,26 @@ export function RegistrationForm({ onComplete, forceShowForm = false }: Registra
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-8">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            {isBusiness || isInvestor ? 'Add Additional Role' : 'Complete Your Registration'}
+            {isBusinessRegistered || isInvestorRegistered ? 'Add Additional Role' : 'Complete Your Registration'}
           </h2>
           <p className="text-gray-600 dark:text-gray-300">
-            {isBusiness || isInvestor 
+            {isBusinessRegistered || isInvestorRegistered 
               ? 'You can register for additional roles to access more features'
               : 'Choose your role and provide the required information to get started'
             }
           </p>
           
           {/* Show current registration status */}
-          {(isBusiness || isInvestor) && (
+          {(isBusinessRegistered || isInvestorRegistered) && (
             <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
               <h3 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">Current Registration Status:</h3>
               <div className="flex justify-center space-x-4">
-                {isBusiness && (
+                {isBusinessRegistered && (
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200">
                     ✓ Business Registered
                   </span>
                 )}
-                {isInvestor && (
+                {isInvestorRegistered && (
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200">
                     ✓ Investor Registered
                   </span>
@@ -236,23 +240,23 @@ export function RegistrationForm({ onComplete, forceShowForm = false }: Registra
           <div className="grid grid-cols-2 gap-4">
             <button
               type="button"
-              onClick={() => !isInvestor && setRole('INVESTOR')}
-              disabled={isInvestor}
+              onClick={() => !isInvestorRegistered && setRole('INVESTOR')}
+              disabled={isInvestorRegistered}
               className={`p-4 rounded-lg border-2 transition-colors ${
                 role === 'INVESTOR'
                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                  : isInvestor
+                  : isInvestorRegistered
                   ? 'border-green-300 bg-green-50 dark:bg-green-900/20 cursor-not-allowed'
                   : 'border-gray-300 dark:border-gray-600 hover:border-gray-400'
               }`}
             >
               <div className="text-center">
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 ${
-                  isInvestor 
+                  isInvestorRegistered 
                     ? 'bg-green-100 dark:bg-green-900' 
                     : 'bg-green-100 dark:bg-green-900'
                 }`}>
-                  {isInvestor ? (
+                  {isInvestorRegistered ? (
                     <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
@@ -263,33 +267,33 @@ export function RegistrationForm({ onComplete, forceShowForm = false }: Registra
                   )}
                 </div>
                 <h3 className="font-semibold text-gray-900 dark:text-white">
-                  Investor {isInvestor && '✓'}
+                  Investor {isInvestorRegistered && '✓'}
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                  {isInvestor ? 'Already registered' : 'Invest in projects'}
+                  {isInvestorRegistered ? 'Already registered' : 'Invest in projects'}
                 </p>
               </div>
             </button>
             
             <button
               type="button"
-              onClick={() => !isBusiness && setRole('BUSINESS')}
-              disabled={isBusiness}
+              onClick={() => !isBusinessRegistered && setRole('BUSINESS')}
+              disabled={isBusinessRegistered}
               className={`p-4 rounded-lg border-2 transition-colors ${
                 role === 'BUSINESS'
                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                  : isBusiness
+                  : isBusinessRegistered
                   ? 'border-green-300 bg-green-50 dark:bg-green-900/20 cursor-not-allowed'
                   : 'border-gray-300 dark:border-gray-600 hover:border-gray-400'
               }`}
             >
               <div className="text-center">
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 ${
-                  isBusiness 
+                  isBusinessRegistered 
                     ? 'bg-green-100 dark:bg-green-900' 
                     : 'bg-blue-100 dark:bg-blue-900'
                 }`}>
-                  {isBusiness ? (
+                  {isBusinessRegistered ? (
                     <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
@@ -300,10 +304,10 @@ export function RegistrationForm({ onComplete, forceShowForm = false }: Registra
                   )}
                 </div>
                 <h3 className="font-semibold text-gray-900 dark:text-white">
-                  Business {isBusiness && '✓'}
+                  Business {isBusinessRegistered && '✓'}
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                  {isBusiness ? 'Already registered' : 'Raise funds'}
+                  {isBusinessRegistered ? 'Already registered' : 'Raise funds'}
                 </p>
               </div>
             </button>
