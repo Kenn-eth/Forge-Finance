@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, usePublicClient } from 'wagmi';
 import { CONTRACTS, INVOICE_TOKEN_ABI, KYC_REGISTRY_ABI } from '@/lib/contracts';
-import { createInvoiceInDatabase } from '@/lib/ipfs';
 
 interface InvoiceFormData {
   customerName: string;
@@ -160,8 +159,16 @@ export function InvoiceCreationForm() {
       };
 
       try {
-        const metadataUri = await createInvoiceInDatabase(invoiceData);
-        console.log('Invoice metadata stored:', metadataUri);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/invoices`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(invoiceData),
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const result = await response.json();
+        console.log('Invoice metadata stored:', result?.metadata_uri);
       } catch (dbError) {
         console.error('Database error:', dbError);
         throw new Error('Failed to store invoice data. Please try again.');

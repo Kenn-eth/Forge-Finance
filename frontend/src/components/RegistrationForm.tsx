@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
 import { CONTRACTS, KYC_REGISTRY_ABI } from '@/lib/contracts';
-import { uploadDocumentMetadata, generateDocumentHash } from '@/lib/ipfs';
+// IPFS helpers removed; metadata is mocked locally and hash generation simplified
 import { WalletDashboard } from './WalletDashboard';
 
 interface RegistrationFormProps {
@@ -126,11 +126,12 @@ export function RegistrationForm({ onComplete, forceShowForm = false }: Registra
         ...registrationData
       };
 
-      // 2. Upload metadata to IPFS (mock implementation)
-      const metadataHash = await uploadDocumentMetadata(documentMetadata);
-      
-      // 3. Generate document hash
-      const docHash = generateDocumentHash([metadataHash], JSON.stringify(registrationData));
+      // 2. Previously uploaded to IPFS; now skip and generate a simple hash
+      const combined = JSON.stringify({ documentMetadata, registrationData });
+      const docHash = `0x${Array.from(new TextEncoder().encode(combined))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('')
+        .slice(0, 64)}`;
 
       // 4. Call the KYC contract's registration function
       const functionName = role === 'INVESTOR' ? 'registerInvestor' : 'registerBusiness';
@@ -142,12 +143,7 @@ export function RegistrationForm({ onComplete, forceShowForm = false }: Registra
         args: [],
       });
 
-      console.log('Registration submitted:', {
-        userAddress: address,
-        role: role,
-        docHash: docHash,
-        metadataHash: metadataHash
-      });
+      console.log('Registration submitted:', { userAddress: address, role: role, docHash });
       
     } catch (error) {
       console.error('Registration error:', error);
