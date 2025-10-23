@@ -69,7 +69,7 @@ export function InvoiceCreationForm() {
   const parseContractError = (error: unknown): string => {
     if (!error) return 'An unknown error occurred';
     
-    const errorMessage = error.message || error.toString();
+    const errorMessage = (error as Error).message || error.toString();
     
     // Common contract error patterns
     if (errorMessage.includes('User must be a registered business')) {

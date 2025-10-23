@@ -24,7 +24,7 @@ export function Navigation() {
     navItems.forEach((item) => {
       router.prefetch(item.href);
     });
-  }, [router]);
+  }, [router, navItems]);
 
   const isActive = (href: string) => {
     if (href === '/') {
