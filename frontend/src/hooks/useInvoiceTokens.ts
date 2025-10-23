@@ -51,6 +51,12 @@ export function useInvoiceTokens() {
     address: CONTRACTS.INVOICE_TOKEN,
     abi: INVOICE_TOKEN_ABI,
     functionName: 'nonce',
+    query: {
+      staleTime: 30 * 1000, // Cache for 30 seconds
+      gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+    },
   });
 
   // Fetch token details for each token ID

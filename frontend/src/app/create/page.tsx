@@ -1,4 +1,20 @@
-import { InvoiceCreationForm } from '@/components/InvoiceCreationForm';
+'use client';
+
+import dynamic from 'next/dynamic';
+import { Suspense } from 'react';
+
+// Dynamically import form to avoid blocking navigation
+const InvoiceCreationForm = dynamic(() => import('@/components/InvoiceCreationForm').then(mod => ({ default: mod.InvoiceCreationForm })), {
+  loading: () => (
+    <div className="max-w-2xl mx-auto p-6">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="mt-4 text-gray-600">Loading form...</p>
+      </div>
+    </div>
+  ),
+  ssr: false, // Disable SSR for this component to speed up navigation
+});
 
 export default function CreateInvoicePage() {
   return (
@@ -10,7 +26,16 @@ export default function CreateInvoicePage() {
             Create a new invoice token to raise funds from investors
           </p>
         </div>
-        <InvoiceCreationForm />
+        <Suspense fallback={
+          <div className="max-w-2xl mx-auto p-6">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Loading...</p>
+            </div>
+          </div>
+        }>
+          <InvoiceCreationForm />
+        </Suspense>
       </div>
     </div>
   );

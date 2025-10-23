@@ -18,7 +18,7 @@ export interface InvoiceMetadata {
     trait_type: string;
     value: string | number;
   }>;
-  properties: Record<string, any>;
+  properties: Record<string, unknown>;
 }
 
 export async function uploadToIPFS(file: File): Promise<string> {
@@ -50,9 +50,11 @@ export function generateDocumentHash(files: string[], metadata: string): string 
 }
 
 // New function to create invoice in database and return URI
-export async function createInvoiceInDatabase(invoiceData: any): Promise<string> {
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+export async function createInvoiceInDatabase(invoiceData: Record<string, unknown>): Promise<string> {
   try {
-    const response = await fetch('http://localhost:3001/invoices', {
+    const response = await fetch(`${API_BASE}/invoices`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -87,7 +89,7 @@ export async function getInvoiceMetadata(metadataUri: string): Promise<InvoiceMe
 }
 
 // Helper function to create invoice metadata from form data
-export function createInvoiceMetadata(formData: any, businessAddress: string): InvoiceMetadata {
+export function createInvoiceMetadata(formData: Record<string, unknown>, businessAddress: string): InvoiceMetadata {
   return {
     name: `Invoice #${formData.invoiceNumber}`,
     description: formData.description || `Invoice for ${formData.services}`,

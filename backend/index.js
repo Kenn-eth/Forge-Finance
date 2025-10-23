@@ -58,6 +58,45 @@ db.run(`
   )
 `);
 
+// Add sample data for testing (only if database is empty)
+db.get('SELECT COUNT(*) as count FROM kyc', (err, row) => {
+  if (err) return;
+  if (row.count === 0) {
+    console.log('🌱 Seeding database with sample data...');
+    
+    // Sample KYC data
+    const sampleKYC = [
+      {
+        address: '0x1234567890123456789012345678901234567890',
+        data: JSON.stringify({
+          name: 'John Doe',
+          email: 'john@example.com',
+          role: 'BUSINESS',
+          company: 'Sample Corp'
+        }),
+        verified: 1
+      },
+      {
+        address: '0x0987654321098765432109876543210987654321',
+        data: JSON.stringify({
+          name: 'Jane Smith',
+          email: 'jane@example.com',
+          role: 'INVESTOR',
+          company: 'Investment LLC'
+        }),
+        verified: 1
+      }
+    ];
+    
+    sampleKYC.forEach((kyc) => {
+      db.run('INSERT INTO kyc (address, data, verified) VALUES (?, ?, ?)', 
+        [kyc.address, kyc.data, kyc.verified]);
+    });
+    
+    console.log('✅ Sample data added for testing');
+  }
+});
+
 // Create invoices table for storing invoice metadata
 db.run(`
   CREATE TABLE IF NOT EXISTS invoices (
@@ -94,17 +133,20 @@ db.run(`
   )
 `);
 
-// Load contract config from environment variables
+// Load contract config from environment variables (for read-only operations)
 const KYC_CONTRACT_ADDRESS = process.env.KYC_CONTRACT_ADDRESS;
 const KYC_CONTRACT_ABI = require('./KYCRegistry.abi.json').abi; // Extract ABI array from JSON
-const ADMIN_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY;
 const ETH_RPC_URL = process.env.ETH_RPC_URL;
 
-let contract, wallet;
-if (KYC_CONTRACT_ADDRESS && ADMIN_PRIVATE_KEY && ETH_RPC_URL) {
-  const provider = new ethers.JsonRpcProvider(ETH_RPC_URL);
-  wallet = new ethers.Wallet(ADMIN_PRIVATE_KEY, provider);
-  contract = new ethers.Contract(KYC_CONTRACT_ADDRESS, KYC_CONTRACT_ABI, wallet);
+// Contract setup for read-only operations only
+let contract, provider;
+if (KYC_CONTRACT_ADDRESS && ETH_RPC_URL) {
+  provider = new ethers.JsonRpcProvider(ETH_RPC_URL);
+  // Read-only contract - no signer needed
+  contract = new ethers.Contract(KYC_CONTRACT_ADDRESS, KYC_CONTRACT_ABI, provider);
+  console.log('✅ Blockchain read-only integration enabled');
+} else {
+  console.log('⚠️  Blockchain integration disabled - running in database-only mode');
 }
 
 // Endpoint to submit KYC data
@@ -123,7 +165,7 @@ app.post('/kyc', (req, res) => {
   );
 });
 
-// Endpoint to verify KYC and call contract (simplified - validates every call)
+// Endpoint to verify KYC (database only - frontend handles blockchain)
 app.post('/kyc/verify', async (req, res) => {
   const { address } = req.body;
   if (!address) {
@@ -131,19 +173,15 @@ app.post('/kyc/verify', async (req, res) => {
   }
   
   try {
-    // Simplified KYC - just verify the user without complex validation
-    if (!contract) {
-      return res.status(500).json({ error: 'Contract not configured.' });
-    }
-    
-    // Call the contract's verifyKYC function (minimal validation)
-    const tx = await contract.verifyKYC(address);
-    await tx.wait();
-    
-    // Mark as verified in DB
+    // Backend only handles database verification
+    // Frontend handles blockchain verification directly with user's wallet
     db.run('UPDATE kyc SET verified = 1 WHERE address = ?', [address], function (err) {
       if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true, txHash: tx.hash });
+      res.json({ 
+        success: true, 
+        method: 'database',
+        message: 'KYC verified in database. User should verify on blockchain via frontend.' 
+      });
     });
   } catch (e) {
     res.status(500).json({ error: e.message });

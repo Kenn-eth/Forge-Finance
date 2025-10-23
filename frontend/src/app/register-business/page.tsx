@@ -86,7 +86,7 @@ export default function RegisterBusinessPage() {
               Complete Business Registration
             </h2>
             <p className="text-gray-600">
-              You're already registered as an investor. Complete your business registration to start creating invoice tokens.
+              You&apos;re already registered as an investor. Complete your business registration to start creating invoice tokens.
             </p>
           </div>
           

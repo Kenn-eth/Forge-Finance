@@ -39,22 +39,19 @@ export function InvoiceTokenCard({ token, onBuySuccess, isRealToken = false }: I
     return new Date(parseInt(timestamp) * 1000).toLocaleDateString();
   };
 
-  const formatCurrency = (amount: string) => {
+  // Amounts from chain/DB are in USDC base units (6 decimals). Convert for UI.
+  const formatCurrency = (amountBaseUnits: string) => {
+    const usd = parseFloat(amountBaseUnits) / 1_000_000;
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
-    }).format(parseFloat(amount));
+    }).format(usd);
   };
 
-  const calculatePricePerToken = () => {
-    const loanAmount = parseFloat(token.loanAmount);
-    const tokenSupply = parseFloat(token.tokenSupply);
-    return loanAmount / tokenSupply;
-  };
+  // Price per token should equal unitValue (both are the same concept in this design)
+  const pricePerToken = () => (parseFloat(token.unitValue) / 1_000_000);
 
-  const calculateTotalPrice = () => {
-    return calculatePricePerToken() * quantity;
-  };
+  const calculateTotalPrice = () => pricePerToken() * quantity;
 
   const isCampaignActive = () => {
     const now = Math.floor(Date.now() / 1000);
@@ -125,7 +122,7 @@ export function InvoiceTokenCard({ token, onBuySuccess, isRealToken = false }: I
             )}
           </div>
           <p className="text-sm text-gray-600">
-            {token.customerName || 'Anonymous Customer'}
+            {token.customerName || 'Customer details loading...'}
           </p>
         </div>
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor()}`}>
@@ -152,7 +149,7 @@ export function InvoiceTokenCard({ token, onBuySuccess, isRealToken = false }: I
         </div>
         <div className="flex justify-between">
           <span className="text-sm text-gray-600">Price per Token:</span>
-          <span className="font-medium">{formatCurrency(calculatePricePerToken().toString())}</span>
+          <span className="font-medium">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(pricePerToken())}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-sm text-gray-600">Maturity Date:</span>
@@ -164,19 +161,19 @@ export function InvoiceTokenCard({ token, onBuySuccess, isRealToken = false }: I
         </div>
       </div>
 
-      {token.services && (
-        <div className="mb-4">
-          <p className="text-sm text-gray-600 mb-1">Services:</p>
-          <p className="text-sm text-gray-800">{token.services}</p>
-        </div>
-      )}
+      <div className="mb-4">
+        <p className="text-sm text-gray-600 mb-1">Services:</p>
+        <p className="text-sm text-gray-800">
+          {token.services || 'Service details loading...'}
+        </p>
+      </div>
 
-      {token.description && (
-        <div className="mb-4">
-          <p className="text-sm text-gray-600 mb-1">Description:</p>
-          <p className="text-sm text-gray-800 line-clamp-2">{token.description}</p>
-        </div>
-      )}
+      <div className="mb-4">
+        <p className="text-sm text-gray-600 mb-1">Description:</p>
+        <p className="text-sm text-gray-800 line-clamp-2">
+          {token.description || 'No additional description provided'}
+        </p>
+      </div>
 
       {isCampaignActive() && parseInt(token.availableSupply) > 0 && (
         <div className="border-t pt-4">

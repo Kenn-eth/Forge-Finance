@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useReadContract } from 'wagmi';
+// import { useReadContract } from 'wagmi';
 import { InvoiceTokenCard } from './InvoiceTokenCard';
 import { WalletGuard } from './WalletGuard';
 import { useInvoiceTokens } from '@/hooks/useInvoiceTokens';
 import { useInvoiceEvents } from '@/hooks/useInvoiceEvents';
+import { useMarketplaceInvoices } from '@/hooks/useMarketplaceInvoices';
 
 interface InvoiceTokenData {
   id: number;
@@ -33,6 +34,64 @@ interface FilterOptions {
   sortBy: 'newest' | 'oldest' | 'value_high' | 'value_low' | 'maturity_soon';
 }
 
+// Mock data defined outside component to prevent recreating on every render
+const MOCK_TOKENS: InvoiceTokenData[] = [
+  {
+    id: 1,
+    loanAmount: '50000',
+    invoiceValue: '75000',
+    unitValue: '100',
+    createdAt: '1700000000',
+    campaignDuration: '2592000', // 30 days
+    campaignEndTime: '1702592000',
+    maturityDate: '1705000000',
+    tokenSupply: '750',
+    availableSupply: '500',
+    isFulfilled: false,
+    owner: '0x123...',
+    invoiceNumber: 'INV-2024-001',
+    customerName: 'TechCorp Inc.',
+    services: 'Software Development Services',
+    description: 'Custom web application development for enterprise client'
+  },
+  {
+    id: 2,
+    loanAmount: '25000',
+    invoiceValue: '40000',
+    unitValue: '100',
+    createdAt: '1699000000',
+    campaignDuration: '2592000',
+    campaignEndTime: '1701592000',
+    maturityDate: '1704000000',
+    tokenSupply: '400',
+    availableSupply: '0',
+    isFulfilled: false,
+    owner: '0x456...',
+    invoiceNumber: 'INV-2024-002',
+    customerName: 'Manufacturing Co.',
+    services: 'Equipment Supply',
+    description: 'Industrial equipment supply and installation'
+  },
+  {
+    id: 3,
+    loanAmount: '100000',
+    invoiceValue: '150000',
+    unitValue: '100',
+    createdAt: '1698000000',
+    campaignDuration: '2592000',
+    campaignEndTime: '1700592000',
+    maturityDate: '1703000000',
+    tokenSupply: '1500',
+    availableSupply: '200',
+    isFulfilled: true,
+    owner: '0x789...',
+    invoiceNumber: 'INV-2024-003',
+    customerName: 'Construction Ltd.',
+    services: 'Building Construction',
+    description: 'Commercial building construction project'
+  }
+];
+
 export function Marketplace() {
   const [filteredTokens, setFilteredTokens] = useState<InvoiceTokenData[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,90 +102,12 @@ export function Marketplace() {
     sortBy: 'newest'
   });
 
-  // Get real tokens from contract
-  const { tokens: realTokens, isLoading: realTokensLoading, error: realTokensError, refreshTokens } = useInvoiceTokens();
+  // Import the useMarketplaceInvoices hook at the top
+  const { invoices: realTokens, isLoading: realTokensLoading, error: realTokensError, refresh: refreshTokens } = useMarketplaceInvoices();
 
-  // Add a timeout to prevent infinite loading
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (realTokensLoading) {
-        console.warn('Token loading timeout - showing mock tokens only');
-      }
-    }, 10000); // 10 second timeout
-
-    return () => clearTimeout(timeout);
-  }, [realTokensLoading]);
-
-  // Listen for new invoice creation events (memoized to prevent infinite re-renders)
-  const handleInvoiceCreated = useCallback((event: any) => {
-    console.log('New invoice created, refreshing tokens...', event);
-    // Refresh tokens when a new invoice is created
-    refreshTokens();
-  }, [refreshTokens]);
-
-  useInvoiceEvents(handleInvoiceCreated);
-
-  // Mock data for now - replace with actual contract calls
-  const mockTokens: InvoiceTokenData[] = [
-    {
-      id: 1,
-      loanAmount: '50000',
-      invoiceValue: '75000',
-      unitValue: '100',
-      createdAt: '1700000000',
-      campaignDuration: '2592000', // 30 days
-      campaignEndTime: '1702592000',
-      maturityDate: '1705000000',
-      tokenSupply: '750',
-      availableSupply: '500',
-      isFulfilled: false,
-      owner: '0x123...',
-      invoiceNumber: 'INV-2024-001',
-      customerName: 'TechCorp Inc.',
-      services: 'Software Development Services',
-      description: 'Custom web application development for enterprise client'
-    },
-    {
-      id: 2,
-      loanAmount: '25000',
-      invoiceValue: '40000',
-      unitValue: '100',
-      createdAt: '1699000000',
-      campaignDuration: '2592000',
-      campaignEndTime: '1701592000',
-      maturityDate: '1704000000',
-      tokenSupply: '400',
-      availableSupply: '0',
-      isFulfilled: false,
-      owner: '0x456...',
-      invoiceNumber: 'INV-2024-002',
-      customerName: 'Manufacturing Co.',
-      services: 'Equipment Supply',
-      description: 'Industrial equipment supply and installation'
-    },
-    {
-      id: 3,
-      loanAmount: '100000',
-      invoiceValue: '150000',
-      unitValue: '100',
-      createdAt: '1698000000',
-      campaignDuration: '2592000',
-      campaignEndTime: '1700592000',
-      maturityDate: '1703000000',
-      tokenSupply: '1500',
-      availableSupply: '200',
-      isFulfilled: true,
-      owner: '0x789...',
-      invoiceNumber: 'INV-2024-003',
-      customerName: 'Construction Ltd.',
-      services: 'Building Construction',
-      description: 'Commercial building construction project'
-    }
-  ];
-
-  // Combine real tokens with mock tokens (memoized to prevent infinite re-renders)
-  const allTokens = useMemo(() => [...realTokens, ...mockTokens], [realTokens, mockTokens]);
-  const isLoading = realTokensLoading;
+  // Only real tokens; if none, show empty state
+  const allTokens = useMemo(() => realTokens, [realTokens]);
+  const isLoading = realTokensLoading && realTokens.length === 0;
 
   useEffect(() => {
     console.log('Marketplace useEffect triggered', { allTokensLength: allTokens.length, searchTerm, filters });
@@ -166,14 +147,17 @@ export function Marketplace() {
     }
 
     // Value range filter
+    // Values are in base units (1e6). Convert for comparisons with USD inputs.
     if (filters.minValue) {
+      const min = parseFloat(filters.minValue) * 1_000_000;
       filtered = filtered.filter(token => 
-        parseFloat(token.invoiceValue) >= parseFloat(filters.minValue)
+        parseFloat(token.invoiceValue) >= min
       );
     }
     if (filters.maxValue) {
+      const max = parseFloat(filters.maxValue) * 1_000_000;
       filtered = filtered.filter(token => 
-        parseFloat(token.invoiceValue) <= parseFloat(filters.maxValue)
+        parseFloat(token.invoiceValue) <= max
       );
     }
 
@@ -216,21 +200,8 @@ export function Marketplace() {
     refreshTokens();
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading marketplace...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <WalletGuard>
+    <WalletGuard requireConnection={false}>
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
@@ -243,7 +214,7 @@ export function Marketplace() {
               </p>
               <div className="mt-2 flex items-center space-x-4 text-sm text-gray-500">
                 <span>Real tokens: {realTokens.length}</span>
-                <span>Demo tokens: {mockTokens.length}</span>
+                <span>Demo tokens: {MOCK_TOKENS.length}</span>
                 <span>Total: {allTokens.length}</span>
                 {realTokensError && (
                   <span className="text-red-500">⚠️ Error loading real tokens</span>

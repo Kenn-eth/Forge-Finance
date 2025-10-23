@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, usePublicClient } from 'wagmi';
 import { CONTRACTS, INVOICE_TOKEN_ABI, KYC_REGISTRY_ABI } from '@/lib/contracts';
 import { createInvoiceInDatabase } from '@/lib/ipfs';
 
@@ -25,16 +25,21 @@ export function InvoiceCreationForm() {
   const { isLoading: isConfirming, isSuccess, isError, error: receiptError, data: receipt } = useWaitForTransactionReceipt({
     hash,
   });
+  const publicClient = usePublicClient();
   const [isLoading, setIsLoading] = useState(false);
   const [tokenId, setTokenId] = useState<number | null>(null);
   const [invoiceNumber, setInvoiceNumber] = useState<string>('');
 
-  // Check if user is registered as business
+  // Check if user is registered as business (with query enabled false to not block render)
   const { data: isBusiness } = useReadContract({
     address: CONTRACTS.KYC_REGISTRY,
     abi: KYC_REGISTRY_ABI,
     functionName: 'isBusiness',
     args: address ? [address] : undefined,
+    query: {
+      enabled: !!address, // Only fetch when address is available
+      staleTime: 60 * 1000, // Cache for 1 minute
+    },
   });
   const [formData, setFormData] = useState<InvoiceFormData>({
     customerName: '',
@@ -61,7 +66,7 @@ export function InvoiceCreationForm() {
   };
 
   // Function to parse contract errors and provide user-friendly messages
-  const parseContractError = (error: any): string => {
+  const parseContractError = (error: unknown): string => {
     if (!error) return 'An unknown error occurred';
     
     const errorMessage = error.message || error.toString();
@@ -120,9 +125,10 @@ export function InvoiceCreationForm() {
       }
 
       // Calculate values for contract
-      const invoiceValue = parseFloat(formData.invoiceValue);
-      const loanAmount = parseFloat(formData.loanAmount);
-      const unitValue = parseFloat(formData.unitValue);
+      // Convert to integers (wei units) - multiply by 1e6 for USDC (6 decimals)
+      const invoiceValue = Math.floor(parseFloat(formData.invoiceValue) * 1e6);
+      const loanAmount = Math.floor(parseFloat(formData.loanAmount) * 1e6);
+      const unitValue = Math.floor(parseFloat(formData.unitValue) * 1e6);
       const campaignDuration = parseInt(formData.campaignDuration) * 24 * 60 * 60; // Convert days to seconds
       const maturityDate = Math.floor(new Date(formData.maturityDate).getTime() / 1000); // Convert to timestamp
 
@@ -158,6 +164,60 @@ export function InvoiceCreationForm() {
       }
 
       // 2. Then call smart contract with only required parameters
+      console.log('📊 Contract Call Parameters:');
+      console.log('  loanAmount:', loanAmount);
+      console.log('  invoiceValue:', invoiceValue);
+      console.log('  unitValue:', unitValue);
+      console.log('  campaignDuration:', campaignDuration);
+      console.log('  maturityDate:', maturityDate);
+      console.log('  address:', address);
+      console.log('  contract:', CONTRACTS.INVOICE_TOKEN);
+      
+      // First simulate the contract call to get the return value
+      if (!publicClient) {
+        throw new Error('Public client not available');
+      }
+      
+      const simulationResult = await publicClient.simulateContract({
+        address: CONTRACTS.INVOICE_TOKEN,
+        abi: INVOICE_TOKEN_ABI,
+        functionName: 'createInvoice',
+        args: [
+          loanAmount,
+          invoiceValue,
+          unitValue,
+          campaignDuration,
+          maturityDate,
+          '0x' // empty data - metadata is stored in database
+        ],
+        account: address,
+      });
+
+      // Debug the simulation result
+      console.log('Full simulation result:', simulationResult);
+      console.log('Simulation result.result:', simulationResult.result);
+      console.log('Type of result:', typeof simulationResult.result);
+
+      // Extract the token ID from the simulation result
+      let tokenIdFromSimulation;
+      if (typeof simulationResult.result === 'bigint') {
+        tokenIdFromSimulation = Number(simulationResult.result);
+      } else if (typeof simulationResult.result === 'string') {
+        tokenIdFromSimulation = parseInt(simulationResult.result, 10);
+      } else {
+        console.error('Unexpected result type:', typeof simulationResult.result, simulationResult.result);
+        tokenIdFromSimulation = 0;
+      }
+      
+      setTokenId(tokenIdFromSimulation);
+      console.log('Token ID from simulation:', tokenIdFromSimulation);
+
+      // Validate that we got a valid token ID
+      if (isNaN(tokenIdFromSimulation) || tokenIdFromSimulation < 0) {
+        console.warn('Invalid token ID from simulation, proceeding with transaction anyway');
+      }
+
+      // Now execute the actual transaction
       writeContract({
         address: CONTRACTS.INVOICE_TOKEN,
         abi: INVOICE_TOKEN_ABI,
@@ -181,39 +241,35 @@ export function InvoiceCreationForm() {
     }
   };
 
-  // Extract token ID from transaction receipt logs
+  // Fallback: Extract token ID from transaction receipt logs if simulation failed
   useEffect(() => {
-    if (receipt && receipt.logs) {
+    if (receipt && receipt.logs && (tokenId === null || isNaN(tokenId) || tokenId === 0)) {
+      console.log('Attempting to extract token ID from transaction logs as fallback');
+      
       // Find the InvoiceMinted event in the logs
       const invoiceMintedEvent = receipt.logs.find(log => {
-        // Check if this log is from our contract and contains the InvoiceMinted event
         return log.address.toLowerCase() === CONTRACTS.INVOICE_TOKEN.toLowerCase();
       });
 
       if (invoiceMintedEvent && invoiceMintedEvent.topics && invoiceMintedEvent.topics.length >= 3) {
         try {
-          // Decode the event data to get the token ID
-          // The InvoiceMinted event has: (address indexed createdBy, uint256 indexed id, uint256 amount, string metadataURI)
-          // The token ID is the second indexed parameter (topics[2])
-          // topics[0] is the event signature hash
-          // topics[1] is the first indexed parameter (createdBy address)
-          // topics[2] is the second indexed parameter (token ID)
-          const tokenIdFromEvent = Number(invoiceMintedEvent.topics[2]);
-          setTokenId(tokenIdFromEvent);
-          console.log('Token ID extracted from event:', tokenIdFromEvent);
+          const tokenIdFromEvent = parseInt(invoiceMintedEvent.topics[2] || '0', 16);
+          if (tokenIdFromEvent > 0) {
+            setTokenId(tokenIdFromEvent);
+            console.log('Token ID extracted from event logs:', tokenIdFromEvent);
+          }
         } catch (error) {
           console.error('Error extracting token ID from event:', error);
-          // Fallback: try to parse from the event data
-          console.log('Event topics:', invoiceMintedEvent.topics);
         }
       }
     }
-  }, [receipt]);
+  }, [receipt, tokenId]);
 
   // Handle transaction errors
-  if (isError || error || receiptError) {
-    const errorToShow = error || receiptError;
-    const errorMessage = parseContractError(errorToShow);
+  // Only show error if we have an error AND either no hash or the receipt shows failure
+  if ((isError || error) && !hash) {
+    // Transaction submission error (never got a hash)
+    const errorMessage = parseContractError(error);
     
     return (
       <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg text-center">
@@ -227,12 +283,52 @@ export function InvoiceCreationForm() {
           {errorMessage}
         </p>
         
-        {hash && (
-          <div className="bg-gray-50 rounded-lg p-4 mb-4">
-            <p className="text-sm text-gray-600 mb-2">Transaction Hash:</p>
-            <p className="font-mono text-sm text-gray-900 break-all">{hash}</p>
-          </div>
-        )}
+        <div className="flex space-x-4 justify-center">
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+          <button
+            onClick={() => window.location.href = '/dashboard'}
+            className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700"
+          >
+            Go to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // If we have a hash but receipt shows transaction failed (status = 0)
+  if (receipt && receipt.status === 'reverted') {
+    const errorMessage = receiptError ? parseContractError(receiptError) : 'Transaction was reverted by the network';
+    
+    return (
+      <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg text-center">
+        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-bold text-red-600 mb-2">Transaction Reverted</h2>
+        <p className="text-gray-600 mb-4">
+          {errorMessage}
+        </p>
+        
+        <div className="bg-gray-50 rounded-lg p-4 mb-4">
+          <p className="text-sm text-gray-600 mb-2">Transaction Hash:</p>
+          <a 
+            href={`https://sepolia.etherscan.io/tx/${hash}`} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="font-mono text-sm text-blue-600 hover:text-blue-800 break-all"
+          >
+            {hash}
+          </a>
+          <p className="text-xs text-gray-500 mt-2">Click to view on Etherscan</p>
+        </div>
         
         <div className="flex space-x-4 justify-center">
           <button
@@ -320,25 +416,43 @@ export function InvoiceCreationForm() {
             <p className="font-mono text-lg font-bold text-blue-600">{invoiceNumber}</p>
           </div>
           
-          {tokenId !== null && (
-            <div className="bg-green-50 rounded-lg p-4">
-              <p className="text-sm text-gray-600 mb-1">Token ID:</p>
+          <div className="bg-green-50 rounded-lg p-4">
+            <p className="text-sm text-gray-600 mb-1">Token ID:</p>
+            {tokenId !== null && !isNaN(tokenId) && tokenId >= 0 ? (
               <p className="font-mono text-lg font-bold text-green-600">{tokenId}</p>
-            </div>
-          )}
+            ) : (
+              <p className="font-mono text-lg font-bold text-gray-500">Extracting...</p>
+            )}
+          </div>
         </div>
         {hash && (
           <div className="bg-gray-50 rounded-lg p-4 mb-4">
             <p className="text-sm text-gray-600 mb-2">Transaction Hash:</p>
-            <p className="font-mono text-sm text-gray-900 break-all">{hash}</p>
+            <a 
+              href={`https://sepolia.etherscan.io/tx/${hash}`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="font-mono text-sm text-blue-600 hover:text-blue-800 break-all"
+            >
+              {hash}
+            </a>
+            <p className="text-xs text-gray-500 mt-2">Click to view on Etherscan</p>
           </div>
         )}
-        <button
-          onClick={() => window.location.href = '/marketplace'}
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-        >
-          View in Marketplace
-        </button>
+        <div className="flex space-x-4 justify-center">
+          <button
+            onClick={() => window.location.href = '/marketplace'}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+          >
+            View in Marketplace
+          </button>
+          <button
+            onClick={() => window.location.href = '/dashboard'}
+            className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700"
+          >
+            Go to Dashboard
+          </button>
+        </div>
       </div>
     );
   }
@@ -543,7 +657,7 @@ export function InvoiceCreationForm() {
             </div>
             <p className="text-red-700 mt-1 text-sm">
               {error && typeof error === 'object' && 'message' in error 
-                ? (error as any).message 
+                ? (error as Error).message 
                 : 'An error occurred during invoice creation. Please try again.'}
             </p>
           </div>

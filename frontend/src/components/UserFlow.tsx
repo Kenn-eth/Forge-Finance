@@ -79,7 +79,7 @@ export function UserFlow() {
                 Connect Your Wallet
               </h2>
               <p className="text-gray-600 dark:text-gray-300 mb-6">
-                Connect your wallet to get started with invoice financing. You'll need to complete registration and KYC verification to access all features.
+                Connect your wallet to get started with invoice financing. You&apos;ll need to complete registration and KYC verification to access all features.
               </p>
               <div className="flex justify-center">
                 <ConnectButton />

@@ -12,6 +12,10 @@ build/
 .env
 .env.local
 
+# Backend database and uploads
+backend/kyc.db
+backend/uploads/
+
 # OS/system files
 .DS_Store
 Thumbs.db

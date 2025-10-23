@@ -15,12 +15,12 @@ export function KYCVerification({ userRole, onComplete }: KYCVerificationProps) 
   const [verificationStep, setVerificationStep] = useState<'info' | 'verify' | 'complete'>('info');
 
   const { writeContract, data: hash, error, isPending } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+  const { isSuccess } = useWaitForTransactionReceipt({
     hash,
   });
 
   // Check current KYC status
-  const { data: isKYCVerified, refetch: refetchKYCStatus } = useReadContract({
+  const { refetch: refetchKYCStatus } = useReadContract({
     address: CONTRACTS.KYC_REGISTRY,
     abi: KYC_REGISTRY_ABI,
     functionName: 'getKYCStatus',
@@ -83,7 +83,7 @@ export function KYCVerification({ userRole, onComplete }: KYCVerificationProps) 
                 <p>• This process is required for regulatory compliance</p>
                 <p>• Your information is securely stored and encrypted</p>
                 <p>• Verification typically takes a few minutes</p>
-                <p>• You'll be able to access all features once verified</p>
+                <p>• You&apos;ll be able to access all features once verified</p>
               </div>
             </div>
           </div>
@@ -96,7 +96,7 @@ export function KYCVerification({ userRole, onComplete }: KYCVerificationProps) 
               <div className="w-6 h-6 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center">
                 <span className="text-xs font-bold text-blue-600 dark:text-blue-400">1</span>
               </div>
-              <span className="text-gray-700 dark:text-gray-300">Click "Verify KYC" to initiate the verification process</span>
+              <span className="text-gray-700 dark:text-gray-300">Click &quot;Verify KYC&quot; to initiate the verification process</span>
             </div>
             <div className="flex items-center space-x-3">
               <div className="w-6 h-6 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center">
