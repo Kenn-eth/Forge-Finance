@@ -41,19 +41,24 @@ export function UserFlow() {
     query: { enabled: Boolean(isConnected && address), staleTime: 30000 },
   });
 
+  // Type the boolean values properly
+  const isBusinessRegistered: boolean = Boolean(isBusiness);
+  const isInvestorRegistered: boolean = Boolean(isInvestor);
+  const isKYCVerifiedStatus: boolean = Boolean(isKYCVerified);
+
   // Determine current step based on user status
   useEffect(() => {
     if (!isConnected) {
       setCurrentStep('connect');
-    } else if (isKYCVerified) {
+    } else if (isKYCVerifiedStatus) {
       setCurrentStep('complete');
-    } else if (isBusiness || isInvestor) {
+    } else if (isBusinessRegistered || isInvestorRegistered) {
       setCurrentStep('verify');
-      setUserRole(isBusiness ? 'BUSINESS' : 'INVESTOR');
+      setUserRole(isBusinessRegistered ? 'BUSINESS' : 'INVESTOR');
     } else {
       setCurrentStep('register');
     }
-  }, [isConnected, isBusiness, isInvestor, isKYCVerified]);
+  }, [isConnected, isBusinessRegistered, isInvestorRegistered, isKYCVerifiedStatus]);
 
   const handleRegistrationComplete = (role: 'INVESTOR' | 'BUSINESS') => {
     setUserRole(role);

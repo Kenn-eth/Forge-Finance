@@ -32,8 +32,9 @@ export function WalletDashboard() {
   });
 
   // Type the boolean values properly
-  const isInvestorRegistered = Boolean(isInvestor);
-  const isVerifiedStatus = Boolean(isVerified);
+  const isBusinessRegistered: boolean = Boolean(isBusiness);
+  const isInvestorRegistered: boolean = Boolean(isInvestor);
+  const isVerifiedStatus: boolean = Boolean(isVerified);
 
   useEffect(() => {
     if (address) {
@@ -206,7 +207,7 @@ export function WalletDashboard() {
         )}
 
         {/* For Businesses */}
-        {isBusiness && (
+        {isBusinessRegistered && (
           <>
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
               <div className="text-center">

@@ -27,19 +27,23 @@ export default function RegisterBusinessPage() {
     args: address ? [address] : undefined,
   });
 
+  // Type the boolean values properly
+  const isBusinessRegistered: boolean = Boolean(isBusiness);
+  const isInvestorRegistered: boolean = Boolean(isInvestor);
+
   // Redirect if not connected or already registered as business
   useEffect(() => {
     // Only redirect if we have confirmed data (not loading and not undefined)
     if (!isLoadingBusiness && !isLoadingInvestor) {
       if (!isConnected) {
         router.push('/');
-      } else if (isBusiness === true) {
+      } else if (isBusinessRegistered === true) {
         router.push('/create');
-      } else if (isInvestor === false) {
+      } else if (isInvestorRegistered === false) {
         router.push('/');
       }
     }
-  }, [isConnected, isBusiness, isInvestor, isLoadingBusiness, isLoadingInvestor, router]);
+  }, [isConnected, isBusinessRegistered, isInvestorRegistered, isLoadingBusiness, isLoadingInvestor, router]);
 
   // Show loading while checking registration status
   if (!isConnected || isLoadingBusiness || isLoadingInvestor) {

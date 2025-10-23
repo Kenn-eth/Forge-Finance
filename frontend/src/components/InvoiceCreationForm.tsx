@@ -41,6 +41,10 @@ export function InvoiceCreationForm() {
       staleTime: 60 * 1000, // Cache for 1 minute
     },
   });
+
+  // Type the boolean value properly
+  const isBusinessRegistered: boolean = Boolean(isBusiness);
+
   const [formData, setFormData] = useState<InvoiceFormData>({
     customerName: '',
     customerEmail: '',
@@ -458,7 +462,7 @@ export function InvoiceCreationForm() {
   }
 
   // Show message if user is not registered as business
-  if (address && isBusiness === false) {
+  if (address && isBusinessRegistered === false) {
     return (
       <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg text-center">
         <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">

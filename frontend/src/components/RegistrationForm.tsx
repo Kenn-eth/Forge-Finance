@@ -68,8 +68,8 @@ export function RegistrationForm({ onComplete, forceShowForm = false }: Registra
   });
 
   // Type the boolean values properly
-  const isBusinessRegistered = Boolean(isBusiness);
-  const isInvestorRegistered = Boolean(isInvestor);
+  const isBusinessRegistered: boolean = Boolean(isBusiness);
+  const isInvestorRegistered: boolean = Boolean(isInvestor);
 
   const { } = useReadContract({
     address: CONTRACTS.KYC_REGISTRY,
