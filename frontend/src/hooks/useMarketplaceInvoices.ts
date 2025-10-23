@@ -23,6 +23,107 @@ export interface Invoice {
   description?: string;
 }
 
+// Shape returned by the contract tuple (array form)
+type InvoiceDetailsTuple = readonly [
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  string,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  boolean
+];
+
+interface ExtractedInvoiceDetails {
+  loanAmount: bigint;
+  invoiceValue: bigint;
+  unitValue: bigint;
+  createdAt: bigint;
+  createdBy: string;
+  campaignDuration: bigint;
+  campaignEndTime: bigint;
+  maturityDate: bigint;
+  tokenSupply: bigint;
+  availableSupply: bigint;
+  isFulfilled: boolean;
+}
+
+function extractInvoiceDetails(u: unknown): ExtractedInvoiceDetails | null {
+  if (Array.isArray(u) && u.length >= 11) {
+    const a = u as InvoiceDetailsTuple;
+    return {
+      loanAmount: a[0],
+      invoiceValue: a[1],
+      unitValue: a[2],
+      createdAt: a[3],
+      createdBy: a[4],
+      campaignDuration: a[5],
+      campaignEndTime: a[6],
+      maturityDate: a[7],
+      tokenSupply: a[8],
+      availableSupply: a[9],
+      isFulfilled: a[10],
+    };
+  }
+  if (u && typeof u === 'object') {
+    const obj = u as Record<string, unknown>;
+    const get = <T>(key: string) => obj[key] as T | undefined;
+    const loanAmount = get<bigint>('loanAmount');
+    const invoiceValue = get<bigint>('invoiceValue');
+    const unitValue = get<bigint>('unitValue');
+    const createdAt = get<bigint>('createdAt');
+    const createdBy = get<string>('createdBy');
+    const campaignDuration = get<bigint>('campaignDuration');
+    const campaignEndTime = get<bigint>('campaignEndTime');
+    const maturityDate = get<bigint>('maturityDate');
+    const tokenSupply = get<bigint>('tokenSupply');
+    const availableSupply = get<bigint>('availableSupply');
+    const isFulfilled = obj['isFulfilled'] as boolean | undefined;
+    if (
+      loanAmount &&
+      invoiceValue &&
+      unitValue &&
+      createdAt &&
+      typeof createdBy === 'string' &&
+      campaignDuration &&
+      campaignEndTime &&
+      maturityDate &&
+      tokenSupply &&
+      availableSupply &&
+      typeof isFulfilled === 'boolean'
+    ) {
+      return {
+        loanAmount,
+        invoiceValue,
+        unitValue,
+        createdAt,
+        createdBy,
+        campaignDuration,
+        campaignEndTime,
+        maturityDate,
+        tokenSupply,
+        availableSupply,
+        isFulfilled,
+      };
+    }
+  }
+  return null;
+}
+
+interface InvoiceApiRow {
+  invoice_number?: string;
+  customer_name?: string;
+  services?: string;
+  description?: string;
+  token_id?: string | number | null;
+  invoice_value?: string | number;
+  loan_amount?: string | number;
+}
+
 export function useMarketplaceInvoices() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -81,20 +182,21 @@ export function useMarketplaceInvoices() {
 
         if (details.status !== 'success' || owner.status !== 'success') continue;
 
-        // details.result is tuple matching InvoiceDetails struct
-        const r: unknown = details.result as unknown;
-        // Depending on ABI generation, tuple may be array-like. Access by index for safety
-        const loanAmount = (r.loanAmount ?? (r as any)[0]) as bigint;
-        const invoiceValue = (r.invoiceValue ?? (r as any)[1]) as bigint;
-        const unitValue = (r.unitValue ?? (r as any)[2]) as bigint;
-        const createdAt = (r.createdAt ?? (r as any)[3]) as bigint;
-        const createdBy = (r.createdBy ?? (r as any)[4]) as string;
-        const campaignDuration = (r.campaignDuration ?? (r as any)[5]) as bigint;
-        const campaignEndTime = (r.campaignEndTime ?? (r as any)[6]) as bigint;
-        const maturityDate = (r.maturityDate ?? (r as any)[7]) as bigint;
-        const tokenSupply = (r.tokenSupply ?? (r as any)[8]) as bigint;
-        const availableSupply = (r.availableSupply ?? (r as any)[9]) as bigint;
-        const isFulfilled = (r.isFulfilled ?? (r as any)[10]) as boolean;
+        const parsed = extractInvoiceDetails(details.result);
+        if (!parsed) continue;
+        const {
+          loanAmount,
+          invoiceValue,
+          unitValue,
+          createdAt,
+          createdBy,
+          campaignDuration,
+          campaignEndTime,
+          maturityDate,
+          tokenSupply,
+          availableSupply,
+          isFulfilled,
+        } = parsed;
 
         items.push({
           id: idNum,
@@ -108,7 +210,7 @@ export function useMarketplaceInvoices() {
           tokenSupply: tokenSupply.toString(),
           availableSupply: availableSupply.toString(),
           isFulfilled,
-          owner: (owner.result as string) || createdBy,
+          owner: typeof owner.result === 'string' ? owner.result : createdBy,
         });
       }
 
@@ -121,25 +223,25 @@ export function useMarketplaceInvoices() {
             // If not found by token_id, try to get the most recent invoice for this business without a token_id
             res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/invoices/business/${inv.owner}`);
             if (res.ok) {
-              const invoices = await res.json();
+              const invoices: InvoiceApiRow[] = await res.json();
               // Find the most recent invoice without a token_id that matches our contract data
-              const matchingInvoice = invoices.find((invoice: Record<string, unknown>) => 
+              const matchingInvoice = invoices.find((invoice) => 
                 !invoice.token_id && 
-                parseInt(invoice.invoice_value as string) === parseInt(inv.invoiceValue) &&
-                parseInt(invoice.loan_amount as string) === parseInt(inv.loanAmount)
+                Number(invoice.invoice_value) === Number(inv.invoiceValue) &&
+                Number(invoice.loan_amount) === Number(inv.loanAmount)
               );
               if (matchingInvoice) {
                 return {
                   ...inv,
-                  invoiceNumber: (matchingInvoice as any).invoice_number,
-                  customerName: (matchingInvoice as any).customer_name,
-                  services: (matchingInvoice as any).services,
-                  description: (matchingInvoice as any).description,
+                  invoiceNumber: matchingInvoice.invoice_number,
+                  customerName: matchingInvoice.customer_name,
+                  services: matchingInvoice.services,
+                  description: matchingInvoice.description,
                 } as Invoice;
               }
             }
           } else {
-            const row = await res.json();
+            const row: InvoiceApiRow = await res.json();
             return {
               ...inv,
               invoiceNumber: row.invoice_number,

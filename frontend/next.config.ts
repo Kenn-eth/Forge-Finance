@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
   },
   
   // Improve navigation performance
-  swcMinify: true,
+  // swcMinify is removed in Next.js 15; it's always on
 };
 
 export default nextConfig;
