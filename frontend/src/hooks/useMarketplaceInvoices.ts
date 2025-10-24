@@ -165,12 +165,14 @@ export function useMarketplaceInvoices() {
 
   const fetchInvoices = useCallback(async () => {
     const seq = ++fetchSeqRef.current;
+    console.log('🚀 fetchInvoices called, seq:', seq);
     try {
       setError(null);
       // Only set loading if we don't have invoices yet to prevent flicker
       if (invoices.length === 0) {
         setIsLoading(true);
       }
+      console.log('📊 Starting fetch process...');
 
       // First, fetch from database (fast)
       let dbInvoices: InvoiceApiRow[] = [];
@@ -188,17 +190,21 @@ export function useMarketplaceInvoices() {
           
           if (res.ok) {
             dbInvoices = await res.json();
-            console.log('✅ Fetched', dbInvoices.length, 'invoices from database');
-          } else {
-            console.warn('❌ API returned error:', res.status, res.statusText);
-          }
-        } catch (error) {
-          console.warn('❌ Failed to fetch from database, falling back to blockchain:', error);
+          console.log('✅ Fetched', dbInvoices.length, 'invoices from database');
+        } else {
+          console.warn('❌ API returned error:', res.status, res.statusText);
         }
+      } catch (error) {
+        console.warn('❌ Failed to fetch from database, falling back to blockchain:', error);
       }
+    }
+
+      console.log(`📊 Database returned ${dbInvoices.length} invoices`);
+      console.log('📊 Will fall back to blockchain?', dbInvoices.length === 0);
 
       // If we have database invoices, use them as base and sync with blockchain
       if (dbInvoices.length > 0) {
+        console.log('✅ Using database-first approach with blockchain sync');
         const items: Invoice[] = [];
         
         // For each DB invoice with a token_id, fetch blockchain data
@@ -206,23 +212,15 @@ export function useMarketplaceInvoices() {
           if (!dbInvoice.token_id) continue;
           
           try {
-            // Fetch blockchain data for this token
-            const [detailsResult, ownerResult] = await Promise.all([
-              publicClient?.readContract({
-                address: CONTRACTS.INVOICE_TOKEN as `0x${string}`,
-                abi: INVOICE_TOKEN_ABI,
-                functionName: 'idToInvoiceDetails',
-                args: [BigInt(dbInvoice.token_id)],
-              }),
-              publicClient?.readContract({
-                address: CONTRACTS.INVOICE_TOKEN as `0x${string}`,
-                abi: INVOICE_TOKEN_ABI,
-                functionName: 'idToOwner',
-                args: [BigInt(dbInvoice.token_id)],
-              })
-            ]);
+            // Fetch blockchain data for this token (no need for idToOwner since createdBy is in details)
+            const detailsResult = await publicClient?.readContract({
+              address: CONTRACTS.INVOICE_TOKEN as `0x${string}`,
+              abi: INVOICE_TOKEN_ABI,
+              functionName: 'idToInvoiceDetails',
+              args: [BigInt(dbInvoice.token_id)],
+            });
 
-            if (detailsResult && ownerResult) {
+            if (detailsResult) {
               const parsed = extractInvoiceDetails(detailsResult);
               if (parsed) {
                 items.push({
@@ -237,17 +235,21 @@ export function useMarketplaceInvoices() {
                   tokenSupply: parsed.tokenSupply.toString(),
                   availableSupply: parsed.availableSupply.toString(),
                   isFulfilled: parsed.isFulfilled,
-                  owner: typeof ownerResult === 'string' ? ownerResult : parsed.createdBy,
+                  owner: parsed.createdBy,
                   // Use DB metadata
                   invoiceNumber: dbInvoice.invoice_number,
                   customerName: dbInvoice.customer_name,
                   services: dbInvoice.services,
                   description: dbInvoice.description,
                 });
+              } else {
+                console.warn(`Failed to parse invoice details for token ${dbInvoice.token_id}`);
               }
+            } else {
+              console.warn(`No details returned for token ${dbInvoice.token_id}`);
             }
           } catch (error) {
-            console.warn(`Failed to fetch blockchain data for token ${dbInvoice.token_id}:`, error);
+            console.error(`❌ Failed to fetch blockchain data for token ${dbInvoice.token_id}:`, error);
           }
         }
 
@@ -302,14 +304,37 @@ export function useMarketplaceInvoices() {
         return;
       }
 
-      if (nonce === undefined || nonce === null || !publicClient) {
+      if (!publicClient) {
+        console.warn('❌ Public client not available');
+        setError('Blockchain connection not available. Please check your network connection.');
         if (seq === fetchSeqRef.current) {
           setIsLoading(false);
         }
         return;
       }
 
-      if (Number(nonce) === 0) {
+      // If nonce is not available from the hook, read it directly
+      let blockchainNonce = nonce;
+      if (blockchainNonce === undefined || blockchainNonce === null) {
+        console.log('📡 Nonce not available from hook, reading directly from contract...');
+        try {
+          blockchainNonce = await publicClient.readContract({
+            address: CONTRACTS.INVOICE_TOKEN as `0x${string}`,
+            abi: INVOICE_TOKEN_ABI,
+            functionName: 'nonce',
+          }) as bigint;
+          console.log('✅ Read nonce directly from contract:', blockchainNonce);
+        } catch (error) {
+          console.error('❌ Failed to read nonce from contract:', error);
+          setError('Failed to connect to blockchain. Please check your contract address and network.');
+          if (seq === fetchSeqRef.current) {
+            setIsLoading(false);
+          }
+          return;
+        }
+      }
+
+      if (Number(blockchainNonce) === 0) {
         console.log('📊 No invoices found on blockchain (nonce = 0)');
         if (seq === fetchSeqRef.current) {
         setInvoices([]);
@@ -318,11 +343,11 @@ export function useMarketplaceInvoices() {
         return;
       }
 
-      const total = Number(nonce);
+      const total = Number(blockchainNonce);
       const ids = Array.from({ length: total }, (_, i) => BigInt(i));
       console.log(`📊 Fetching ${total} invoices from blockchain`);
 
-      // Multicall to fetch details for all ids
+      // Multicall to fetch details for all ids (no need for idToOwner since createdBy is in details)
       const detailCalls = ids.map((id) => ({
         address: CONTRACTS.INVOICE_TOKEN as `0x${string}`,
         abi: INVOICE_TOKEN_ABI,
@@ -330,28 +355,26 @@ export function useMarketplaceInvoices() {
         args: [id],
       } as const));
 
-      const ownerCalls = ids.map((id) => ({
-        address: CONTRACTS.INVOICE_TOKEN as `0x${string}`,
-        abi: INVOICE_TOKEN_ABI,
-        functionName: 'idToOwner',
-        args: [id],
-      } as const));
-
-      const [detailResults, ownerResults] = await Promise.all([
-        publicClient.multicall({ contracts: detailCalls, allowFailure: true }),
-        publicClient.multicall({ contracts: ownerCalls, allowFailure: true }),
-      ]);
+      console.log(`📡 Making multicall for ${detailCalls.length} invoices...`);
+      const detailResults = await publicClient.multicall({ contracts: detailCalls, allowFailure: true });
+      console.log(`✅ Multicall completed, processing ${detailResults.length} results...`);
 
       const items: Invoice[] = [];
       for (let i = 0; i < ids.length; i++) {
         const idNum = Number(ids[i]);
         const details = detailResults[i];
-        const owner = ownerResults[i];
 
-        if (details.status !== 'success' || owner.status !== 'success') continue;
+        if (details.status !== 'success') {
+          console.warn(`❌ Failed to fetch details for token ${idNum}:`, details.error);
+          continue;
+        }
 
         const parsed = extractInvoiceDetails(details.result);
-        if (!parsed) continue;
+        if (!parsed) {
+          console.warn(`❌ Failed to parse details for token ${idNum}`);
+          continue;
+        }
+
         const {
           loanAmount,
           invoiceValue,
@@ -378,9 +401,11 @@ export function useMarketplaceInvoices() {
           tokenSupply: tokenSupply.toString(),
           availableSupply: availableSupply.toString(),
           isFulfilled,
-          owner: typeof owner.result === 'string' ? owner.result : createdBy,
+          owner: createdBy,
         });
       }
+
+      console.log(`✅ Successfully parsed ${items.length} invoices from blockchain`);
 
       // Merge DB metadata
       const merged = await Promise.all(items.map(async (inv) => {
@@ -455,14 +480,18 @@ export function useMarketplaceInvoices() {
       const byId = Array.from(new Map(combined.map((m) => [m.id, m])).values());
 
       if (seq === fetchSeqRef.current) {
+        console.log(`✅ Setting ${byId.length} invoices to state`);
         setInvoices(byId);
+      } else {
+        console.log('⚠️ Skipping state update, stale fetch');
       }
     } catch (err) {
-      console.error('Error fetching invoices:', err);
+      console.error('❌ Error fetching invoices:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch invoices');
     } finally {
       if (seq === fetchSeqRef.current) {
-      setIsLoading(false);
+        console.log('🏁 Fetch complete, setting isLoading to false');
+        setIsLoading(false);
       }
     }
   }, [nonce, publicClient, invoices.length]);

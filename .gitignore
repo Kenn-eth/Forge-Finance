@@ -12,8 +12,7 @@ build/
 .env
 .env.local
 
-# Backend database and uploads
-backend/kyc.db
+# Backend uploads (keep database in git for deployment)
 backend/uploads/
 
 # OS/system files
