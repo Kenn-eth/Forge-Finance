@@ -164,13 +164,27 @@ export function useMarketplaceInvoices() {
 
       // First, fetch from database (fast)
       let dbInvoices: InvoiceApiRow[] = [];
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/invoices`);
-        if (res.ok) {
-          dbInvoices = await res.json();
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      console.log('🔍 API URL:', apiUrl);
+      
+      if (!apiUrl) {
+        console.warn('⚠️ NEXT_PUBLIC_API_URL is not set. Marketplace will only show blockchain data.');
+        // Continue to blockchain fallback
+      } else {
+        try {
+          console.log('📡 Fetching invoices from API:', `${apiUrl}/invoices`);
+          const res = await fetch(`${apiUrl}/invoices`);
+          console.log('📡 API Response status:', res.status);
+          
+          if (res.ok) {
+            dbInvoices = await res.json();
+            console.log('✅ Fetched', dbInvoices.length, 'invoices from database');
+          } else {
+            console.warn('❌ API returned error:', res.status, res.statusText);
+          }
+        } catch (error) {
+          console.warn('❌ Failed to fetch from database, falling back to blockchain:', error);
         }
-      } catch (error) {
-        console.warn('Failed to fetch from database, falling back to blockchain:', error);
       }
 
       // If we have database invoices, use them as base and sync with blockchain
@@ -264,8 +278,13 @@ export function useMarketplaceInvoices() {
       }
 
       // Fallback: fetch from blockchain if no database invoices
+      console.log('🔄 Falling back to blockchain-only mode');
+      console.log('🔍 Contract address:', CONTRACTS.INVOICE_TOKEN);
+      console.log('🔍 Nonce:', nonce);
+      console.log('🔍 Public client:', !!publicClient);
+      
       if (!CONTRACTS.INVOICE_TOKEN) {
-        console.warn('InvoiceToken contract address is not set (NEXT_PUBLIC_INVOICE_TOKEN_CONTRACT_ADDRESS)');
+        console.warn('❌ InvoiceToken contract address is not set (NEXT_PUBLIC_INVOICE_TOKEN_CONTRACT_ADDRESS)');
         setError('Contract address not configured. Please set NEXT_PUBLIC_INVOICE_TOKEN_CONTRACT_ADDRESS.');
         if (seq === fetchSeqRef.current) {
           setIsLoading(false);
@@ -281,6 +300,7 @@ export function useMarketplaceInvoices() {
       }
 
       if (Number(nonce) === 0) {
+        console.log('📊 No invoices found on blockchain (nonce = 0)');
         if (seq === fetchSeqRef.current) {
         setInvoices([]);
         setIsLoading(false);
@@ -290,6 +310,7 @@ export function useMarketplaceInvoices() {
 
       const total = Number(nonce);
       const ids = Array.from({ length: total }, (_, i) => BigInt(i));
+      console.log(`📊 Fetching ${total} invoices from blockchain`);
 
       // Multicall to fetch details for all ids
       const detailCalls = ids.map((id) => ({
