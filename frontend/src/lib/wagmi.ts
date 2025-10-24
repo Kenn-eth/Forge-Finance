@@ -23,6 +23,5 @@ export const config = getDefaultConfig({
       wait: 50, // Batch requests for better performance
     },
   },
-  // Disable telemetry to prevent Coinbase Wallet SDK errors
-  enableTelemetry: false,
+  // Note: enableTelemetry is not a valid option for getDefaultConfig
 });

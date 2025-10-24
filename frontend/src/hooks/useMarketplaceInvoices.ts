@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useReadContract, useBlockNumber, usePublicClient } from 'wagmi';
+import { useReadContract, usePublicClient } from 'wagmi';
 import { CONTRACTS, INVOICE_TOKEN_ABI } from '@/lib/contracts';
 
 export interface Invoice {
