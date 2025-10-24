@@ -405,6 +405,17 @@ app.get('/invoices/business/:address', (req, res) => {
   );
 });
 
+// Endpoint to get all invoices (for marketplace)
+app.get('/invoices', (req, res) => {
+  db.all(
+    'SELECT * FROM invoices WHERE token_id IS NOT NULL ORDER BY created_at DESC',
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows);
+    }
+  );
+});
+
 const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`KYC backend running on port ${PORT}`);

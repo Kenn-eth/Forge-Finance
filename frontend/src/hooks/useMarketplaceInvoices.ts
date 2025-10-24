@@ -159,21 +159,126 @@ export function useMarketplaceInvoices() {
   const fetchInvoices = useCallback(async () => {
     try {
       setError(null);
+      setIsLoading(true);
+      const seq = ++fetchSeqRef.current;
 
-      // Defer fetching until prerequisites are ready; avoid clearing UI to prevent flicker
+      // First, fetch from database (fast)
+      let dbInvoices: InvoiceApiRow[] = [];
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/invoices`);
+        if (res.ok) {
+          dbInvoices = await res.json();
+        }
+      } catch (error) {
+        console.warn('Failed to fetch from database, falling back to blockchain:', error);
+      }
+
+      // If we have database invoices, use them as base and sync with blockchain
+      if (dbInvoices.length > 0) {
+        const items: Invoice[] = [];
+        
+        // For each DB invoice with a token_id, fetch blockchain data
+        for (const dbInvoice of dbInvoices) {
+          if (!dbInvoice.token_id) continue;
+          
+          try {
+            // Fetch blockchain data for this token
+            const [detailsResult, ownerResult] = await Promise.all([
+              publicClient?.readContract({
+                address: CONTRACTS.INVOICE_TOKEN as `0x${string}`,
+                abi: INVOICE_TOKEN_ABI,
+                functionName: 'idToInvoiceDetails',
+                args: [BigInt(dbInvoice.token_id)],
+              }),
+              publicClient?.readContract({
+                address: CONTRACTS.INVOICE_TOKEN as `0x${string}`,
+                abi: INVOICE_TOKEN_ABI,
+                functionName: 'idToOwner',
+                args: [BigInt(dbInvoice.token_id)],
+              })
+            ]);
+
+            if (detailsResult && ownerResult) {
+              const parsed = extractInvoiceDetails(detailsResult);
+              if (parsed) {
+                items.push({
+                  id: Number(dbInvoice.token_id),
+                  loanAmount: parsed.loanAmount.toString(),
+                  invoiceValue: parsed.invoiceValue.toString(),
+                  unitValue: parsed.unitValue.toString(),
+                  createdAt: parsed.createdAt.toString(),
+                  campaignDuration: parsed.campaignDuration.toString(),
+                  campaignEndTime: parsed.campaignEndTime.toString(),
+                  maturityDate: parsed.maturityDate.toString(),
+                  tokenSupply: parsed.tokenSupply.toString(),
+                  availableSupply: parsed.availableSupply.toString(),
+                  isFulfilled: parsed.isFulfilled,
+                  owner: typeof ownerResult === 'string' ? ownerResult : parsed.createdBy,
+                  // Use DB metadata
+                  invoiceNumber: dbInvoice.invoice_number,
+                  customerName: dbInvoice.customer_name,
+                  services: dbInvoice.services,
+                  description: dbInvoice.description,
+                });
+              }
+            }
+          } catch (error) {
+            console.warn(`Failed to fetch blockchain data for token ${dbInvoice.token_id}:`, error);
+          }
+        }
+
+        // Deduplicate
+        const seen = new Set<string>();
+        const bySignature: Invoice[] = [];
+        for (const m of items) {
+          const sig = `${m.invoiceNumber || ''}|${m.owner}|${m.loanAmount}|${m.invoiceValue}|${m.maturityDate}`;
+          if (!seen.has(sig)) {
+            seen.add(sig);
+            bySignature.push(m);
+          }
+        }
+
+        const invoiceNumberMap = new Map<string, Invoice>();
+        const withoutInvoiceNumber: Invoice[] = [];
+        for (const m of bySignature) {
+          if (m.invoiceNumber && m.invoiceNumber.trim()) {
+            const key = m.invoiceNumber.trim().toLowerCase();
+            const existing = invoiceNumberMap.get(key);
+            if (!existing) {
+              invoiceNumberMap.set(key, m);
+            } else {
+              invoiceNumberMap.set(key, m.id < existing.id ? m : existing);
+            }
+          } else {
+            withoutInvoiceNumber.push(m);
+          }
+        }
+
+        const combined = [...invoiceNumberMap.values(), ...withoutInvoiceNumber];
+        const byId = Array.from(new Map(combined.map((m) => [m.id, m])).values());
+
+        if (seq === fetchSeqRef.current) {
+          setInvoices(byId);
+        }
+        return;
+      }
+
+      // Fallback: fetch from blockchain if no database invoices
       if (!CONTRACTS.INVOICE_TOKEN) {
         console.warn('InvoiceToken contract address is not set (NEXT_PUBLIC_INVOICE_TOKEN_CONTRACT_ADDRESS)');
-        setIsLoading(false);
+        setError('Contract address not configured. Please set NEXT_PUBLIC_INVOICE_TOKEN_CONTRACT_ADDRESS.');
+        if (seq === fetchSeqRef.current) {
+          setIsLoading(false);
+        }
         return;
       }
 
       if (nonce === undefined || nonce === null || !publicClient) {
-        setIsLoading(false);
+        if (seq === fetchSeqRef.current) {
+          setIsLoading(false);
+        }
         return;
       }
-
-      setIsLoading(true);
-      const seq = ++fetchSeqRef.current;
 
       if (Number(nonce) === 0) {
         if (seq === fetchSeqRef.current) {
@@ -288,9 +393,7 @@ export function useMarketplaceInvoices() {
         return inv;
       }));
 
-      // Deduplicate by token id to prevent duplicates appearing in UI
-      // First, prefer uniqueness by a content signature to avoid visually identical duplicates
-      // Signature uses invoiceNumber (if present) + owner + amounts + maturity
+      // Deduplicate
       const seen = new Set<string>();
       const bySignature: Invoice[] = [];
       for (const m of merged) {
@@ -301,7 +404,6 @@ export function useMarketplaceInvoices() {
         }
       }
 
-      // Then, collapse duplicates that share the same visible invoiceNumber (case/space-insensitive)
       const invoiceNumberMap = new Map<string, Invoice>();
       const withoutInvoiceNumber: Invoice[] = [];
       for (const m of bySignature) {
@@ -311,7 +413,6 @@ export function useMarketplaceInvoices() {
           if (!existing) {
             invoiceNumberMap.set(key, m);
           } else {
-            // Prefer the lower id (earlier token) as the canonical entry
             invoiceNumberMap.set(key, m.id < existing.id ? m : existing);
           }
         } else {
@@ -319,7 +420,6 @@ export function useMarketplaceInvoices() {
         }
       }
 
-      // Finally, ensure uniqueness by id as a safety net
       const combined = [...invoiceNumberMap.values(), ...withoutInvoiceNumber];
       const byId = Array.from(new Map(combined.map((m) => [m.id, m])).values());
 
@@ -328,15 +428,11 @@ export function useMarketplaceInvoices() {
       }
     } catch (err) {
       console.error('Error fetching invoices:', err);
-      // Only set error if this is the latest fetch
       setError(err instanceof Error ? err.message : 'Failed to fetch invoices');
     } finally {
-      // Only flip loading off if this is the latest fetch
-      // If a newer fetch started, let that fetch control loading state
-      setIsLoading((prev) => {
-        return fetchSeqRef.current ? prev : false;
-      });
-      setIsLoading(false);
+      if (seq === fetchSeqRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [nonce, publicClient]);
 

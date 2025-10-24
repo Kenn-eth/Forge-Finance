@@ -107,7 +107,7 @@ export function Marketplace() {
 
   // Only real tokens; if none, show empty state
   const allTokens = useMemo(() => realTokens, [realTokens]);
-  const isLoading = realTokensLoading && realTokens.length === 0;
+  const isLoading = realTokensLoading;
 
   useEffect(() => {
     console.log('Marketplace useEffect triggered', { allTokensLength: allTokens.length, searchTerm, filters });
@@ -342,13 +342,29 @@ export function Marketplace() {
         </div>
 
         {/* Token Grid */}
-        {filteredTokens.length === 0 ? (
+        {isLoading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Loading invoice tokens...</h3>
+            <p className="text-gray-600">
+              Fetching the latest invoice tokens from the blockchain.
+            </p>
+          </div>
+        ) : filteredTokens.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-gray-400 text-6xl mb-4">📄</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No tokens found</h3>
             <p className="text-gray-600">
-              Try adjusting your search criteria or check back later for new listings.
+              {realTokensError ? 
+                'Error loading tokens. Please check your connection and try refreshing.' :
+                'Try adjusting your search criteria or check back later for new listings.'
+              }
             </p>
+            {realTokensError && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-600">{realTokensError}</p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
