@@ -157,10 +157,10 @@ export function useMarketplaceInvoices() {
   const { data: blockNumber } = useBlockNumber({ watch: true });
 
   const fetchInvoices = useCallback(async () => {
+    const seq = ++fetchSeqRef.current;
     try {
       setError(null);
       setIsLoading(true);
-      const seq = ++fetchSeqRef.current;
 
       // First, fetch from database (fast)
       let dbInvoices: InvoiceApiRow[] = [];
@@ -282,8 +282,8 @@ export function useMarketplaceInvoices() {
 
       if (Number(nonce) === 0) {
         if (seq === fetchSeqRef.current) {
-          setInvoices([]);
-          setIsLoading(false);
+        setInvoices([]);
+        setIsLoading(false);
         }
         return;
       }
@@ -431,7 +431,7 @@ export function useMarketplaceInvoices() {
       setError(err instanceof Error ? err.message : 'Failed to fetch invoices');
     } finally {
       if (seq === fetchSeqRef.current) {
-        setIsLoading(false);
+      setIsLoading(false);
       }
     }
   }, [nonce, publicClient]);
