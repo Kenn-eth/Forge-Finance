@@ -104,6 +104,20 @@ export function Marketplace() {
 
   // Import the useMarketplaceInvoices hook at the top
   const { invoices: realTokens, isLoading: realTokensLoading, error: realTokensError, refresh: refreshTokens } = useMarketplaceInvoices();
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 Marketplace Debug:', {
+      realTokensLength: realTokens.length,
+      isLoading: realTokensLoading,
+      error: realTokensError,
+      apiUrl: process.env.NEXT_PUBLIC_API_URL,
+      contractAddress: process.env.NEXT_PUBLIC_INVOICE_TOKEN_CONTRACT_ADDRESS,
+      usdcAddress: process.env.NEXT_PUBLIC_USDC_CONTRACT_ADDRESS,
+      kycAddress: process.env.NEXT_PUBLIC_KYC_REGISTRY_CONTRACT_ADDRESS,
+      walletConnectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID ? 'Set' : 'Not set'
+    });
+  }, [realTokens, realTokensLoading, realTokensError]);
 
   // Only real tokens; if none, show empty state
   const allTokens = useMemo(() => realTokens, [realTokens]);
@@ -218,6 +232,12 @@ export function Marketplace() {
                 <span>Total: {allTokens.length}</span>
                 {realTokensError && (
                   <span className="text-red-500">⚠️ Error loading real tokens</span>
+                )}
+                {!process.env.NEXT_PUBLIC_API_URL && (
+                  <span className="text-yellow-600">⚠️ API URL not configured</span>
+                )}
+                {!process.env.NEXT_PUBLIC_INVOICE_TOKEN_CONTRACT_ADDRESS && (
+                  <span className="text-yellow-600">⚠️ Contract address not configured</span>
                 )}
               </div>
             </div>
@@ -362,7 +382,12 @@ export function Marketplace() {
             </p>
             {realTokensError && (
               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-600 font-medium">Error Details:</p>
                 <p className="text-sm text-red-600">{realTokensError}</p>
+                <div className="mt-2 text-xs text-gray-500">
+                  <p>API URL: {process.env.NEXT_PUBLIC_API_URL || 'Not set'}</p>
+                  <p>Contract: {process.env.NEXT_PUBLIC_INVOICE_TOKEN_CONTRACT_ADDRESS || 'Not set'}</p>
+                </div>
               </div>
             )}
           </div>

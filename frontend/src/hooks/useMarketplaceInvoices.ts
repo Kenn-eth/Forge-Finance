@@ -144,12 +144,22 @@ export function useMarketplaceInvoices() {
   const fetchSeqRef = useRef(0);
 
   // Get the current nonce (total number of invoices created)
-  const { data: nonce } = useReadContract({
+  const { data: nonce, error: nonceError } = useReadContract({
     address: CONTRACTS.INVOICE_TOKEN as `0x${string}`,
     abi: INVOICE_TOKEN_ABI,
     functionName: 'nonce',
     query: { enabled: Boolean(CONTRACTS.INVOICE_TOKEN) },
   });
+
+  // Debug contract access
+  useEffect(() => {
+    console.log('🔍 Contract Debug:', {
+      contractAddress: CONTRACTS.INVOICE_TOKEN,
+      nonce: nonce,
+      nonceError: nonceError,
+      publicClient: !!publicClient
+    });
+  }, [nonce, nonceError, publicClient]);
 
   // Remove block watching to prevent excessive refetching and React hooks issues
 

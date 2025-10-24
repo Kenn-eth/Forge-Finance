@@ -416,7 +416,12 @@ app.get('/invoices', (req, res) => {
   );
 });
 
-const PORT = 3001;
+// Health check endpoint for deployment platforms
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`KYC backend running on port ${PORT}`);
 });
