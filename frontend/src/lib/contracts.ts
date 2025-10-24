@@ -5,11 +5,13 @@ import type { Abi } from 'viem';
 
 export const INVOICE_TOKEN_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_INVOICE_TOKEN_CONTRACT_ADDRESS || '';
 export const KYC_REGISTRY_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_KYC_REGISTRY_CONTRACT_ADDRESS || '';
+export const USDC_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_USDC_CONTRACT_ADDRESS || '';
 
 // Contract addresses
 export const CONTRACTS = {
   KYC_REGISTRY: KYC_REGISTRY_CONTRACT_ADDRESS as `0x${string}`,
   INVOICE_TOKEN: INVOICE_TOKEN_CONTRACT_ADDRESS as `0x${string}`,
+  USDC: USDC_CONTRACT_ADDRESS as `0x${string}`,
 };
 
 // User roles enum
@@ -24,6 +26,44 @@ export const INVOICE_TOKEN_ABI: Abi = InvoiceTokenABI.abi as Abi;
 
 // KYC Registry ABI - Imported from contract artifacts
 export const KYC_REGISTRY_ABI: Abi = KYCRegistryABI.abi as Abi;
+
+// Minimal ERC20 ABI for approvals/balances
+export const ERC20_ABI: Abi = [
+  {
+    type: 'function',
+    name: 'approve',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' }
+    ],
+    outputs: [ { name: '', type: 'bool' } ]
+  },
+  {
+    type: 'function',
+    name: 'allowance',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'spender', type: 'address' }
+    ],
+    outputs: [ { name: '', type: 'uint256' } ]
+  },
+  {
+    type: 'function',
+    name: 'balanceOf',
+    stateMutability: 'view',
+    inputs: [ { name: 'account', type: 'address' } ],
+    outputs: [ { name: '', type: 'uint256' } ]
+  },
+  {
+    type: 'function',
+    name: 'decimals',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [ { name: '', type: 'uint8' } ]
+  }
+] as const as Abi;
 
 // Types for contract data
 export interface InvoiceDetails {

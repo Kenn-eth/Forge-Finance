@@ -149,6 +149,8 @@ export function useMarketplaceInvoices() {
     address: CONTRACTS.INVOICE_TOKEN as `0x${string}`,
     abi: INVOICE_TOKEN_ABI,
     functionName: 'nonce',
+    // Only query when we have a valid contract address
+    query: { enabled: Boolean(CONTRACTS.INVOICE_TOKEN) },
   });
 
   // Watch for new blocks to refresh data
@@ -159,6 +161,12 @@ export function useMarketplaceInvoices() {
       setError(null);
 
       // Defer fetching until prerequisites are ready; avoid clearing UI to prevent flicker
+      if (!CONTRACTS.INVOICE_TOKEN) {
+        console.warn('InvoiceToken contract address is not set (NEXT_PUBLIC_INVOICE_TOKEN_CONTRACT_ADDRESS)');
+        setIsLoading(false);
+        return;
+      }
+
       if (nonce === undefined || nonce === null || !publicClient) {
         setIsLoading(false);
         return;
@@ -281,9 +289,42 @@ export function useMarketplaceInvoices() {
       }));
 
       // Deduplicate by token id to prevent duplicates appearing in UI
-      const deduped = Array.from(new Map(merged.map((m) => [m.id, m])).values());
+      // First, prefer uniqueness by a content signature to avoid visually identical duplicates
+      // Signature uses invoiceNumber (if present) + owner + amounts + maturity
+      const seen = new Set<string>();
+      const bySignature: Invoice[] = [];
+      for (const m of merged) {
+        const sig = `${m.invoiceNumber || ''}|${m.owner}|${m.loanAmount}|${m.invoiceValue}|${m.maturityDate}`;
+        if (!seen.has(sig)) {
+          seen.add(sig);
+          bySignature.push(m);
+        }
+      }
+
+      // Then, collapse duplicates that share the same visible invoiceNumber (case/space-insensitive)
+      const invoiceNumberMap = new Map<string, Invoice>();
+      const withoutInvoiceNumber: Invoice[] = [];
+      for (const m of bySignature) {
+        if (m.invoiceNumber && m.invoiceNumber.trim()) {
+          const key = m.invoiceNumber.trim().toLowerCase();
+          const existing = invoiceNumberMap.get(key);
+          if (!existing) {
+            invoiceNumberMap.set(key, m);
+          } else {
+            // Prefer the lower id (earlier token) as the canonical entry
+            invoiceNumberMap.set(key, m.id < existing.id ? m : existing);
+          }
+        } else {
+          withoutInvoiceNumber.push(m);
+        }
+      }
+
+      // Finally, ensure uniqueness by id as a safety net
+      const combined = [...invoiceNumberMap.values(), ...withoutInvoiceNumber];
+      const byId = Array.from(new Map(combined.map((m) => [m.id, m])).values());
+
       if (seq === fetchSeqRef.current) {
-        setInvoices(deduped);
+        setInvoices(byId);
       }
     } catch (err) {
       console.error('Error fetching invoices:', err);

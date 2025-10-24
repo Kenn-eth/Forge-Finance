@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useAccount, useWriteContract } from 'wagmi';
+import { useAccount, useWriteContract, useReadContract } from 'wagmi';
+import { useConnectModal } from '@rainbow-me/rainbowkit';
+import { CONTRACTS, INVOICE_TOKEN_ABI, ERC20_ABI } from '@/lib/contracts';
 
 interface InvoiceTokenData {
   id: number;
@@ -32,6 +34,7 @@ interface InvoiceTokenCardProps {
 export function InvoiceTokenCard({ token, onBuySuccess, isRealToken = false }: InvoiceTokenCardProps) {
   const { address } = useAccount();
   const { writeContract } = useWriteContract();
+  const { openConnectModal } = useConnectModal();
   const [quantity, setQuantity] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -52,6 +55,15 @@ export function InvoiceTokenCard({ token, onBuySuccess, isRealToken = false }: I
   const pricePerToken = () => (parseFloat(token.unitValue) / 1_000_000);
 
   const calculateTotalPrice = () => pricePerToken() * quantity;
+
+  // Read current allowance to decide if approval is needed
+  const { data: allowanceData } = useReadContract({
+    address: CONTRACTS.USDC,
+    abi: ERC20_ABI,
+    functionName: 'allowance',
+    args: address ? [address, CONTRACTS.INVOICE_TOKEN] : undefined,
+    query: { enabled: Boolean(address && CONTRACTS.USDC && CONTRACTS.INVOICE_TOKEN) }
+  });
 
   const isCampaignActive = () => {
     const now = Math.floor(Date.now() / 1000);
@@ -79,15 +91,43 @@ export function InvoiceTokenCard({ token, onBuySuccess, isRealToken = false }: I
 
   const handleBuyTokens = async () => {
     if (!address) {
-      alert('Please connect your wallet first');
+      openConnectModal?.();
+      return;
+    }
+
+    if (!CONTRACTS.USDC || !CONTRACTS.INVOICE_TOKEN) {
+      alert('Missing contract addresses. Please set NEXT_PUBLIC_USDC_CONTRACT_ADDRESS and NEXT_PUBLIC_INVOICE_TOKEN_CONTRACT_ADDRESS.');
       return;
     }
 
     setIsLoading(true);
     try {
-      writeContract({
-        address: process.env.NEXT_PUBLIC_INVOICE_TOKEN_CONTRACT_ADDRESS as `0x${string}` || '0x0000000000000000000000000000000000000000',
-        abi: [], // Add your contract ABI
+      // Compute total cost using unitValue (base units) * quantity
+      const unitValueBase = BigInt(parseInt(token.unitValue));
+      const totalCostBaseUnits = unitValueBase * BigInt(quantity);
+
+      // Current allowance (default to 0 if undefined)
+      let currentAllowance = BigInt(0);
+      try {
+        if (allowanceData !== undefined && allowanceData !== null) {
+          currentAllowance = BigInt(allowanceData as unknown as string);
+        }
+      } catch {}
+
+      // Approve if insufficient allowance
+      if (currentAllowance < totalCostBaseUnits) {
+        await writeContract({
+          address: CONTRACTS.USDC,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [CONTRACTS.INVOICE_TOKEN, totalCostBaseUnits],
+        });
+      }
+
+      // Call buyInvoiceTokens(id, quantity)
+      await writeContract({
+        address: CONTRACTS.INVOICE_TOKEN,
+        abi: INVOICE_TOKEN_ABI,
         functionName: 'buyInvoiceTokens',
         args: [token.id, quantity],
       });
@@ -104,33 +144,33 @@ export function InvoiceTokenCard({ token, onBuySuccess, isRealToken = false }: I
   const maxQuantity = Math.min(parseInt(token.availableSupply), 100); // Limit to 100 for UI
 
   return (
-    <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
-      <div className="flex justify-between items-start mb-4">
+    <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 hover:shadow-lg transition-shadow">
+      <div className="flex justify-between items-start mb-3">
         <div>
           <div className="flex items-center space-x-2">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-base font-semibold text-gray-900 leading-tight">
               {token.invoiceNumber || `Invoice #${token.id}`}
             </h3>
             {isRealToken ? (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-800">
                 ✓ Live
               </span>
             ) : (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-800">
                 Demo
               </span>
             )}
           </div>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 leading-snug">
             {token.customerName || 'Customer details loading...'}
           </p>
         </div>
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor()}`}>
+        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor()}`}>
           {getStatusText()}
         </span>
       </div>
 
-      <div className="space-y-3 mb-4">
+      <div className="space-y-2 mb-3">
         <div className="flex justify-between">
           <span className="text-sm text-gray-600">Invoice Value:</span>
           <span className="font-medium">{formatCurrency(token.invoiceValue)}</span>
@@ -161,22 +201,22 @@ export function InvoiceTokenCard({ token, onBuySuccess, isRealToken = false }: I
         </div>
       </div>
 
-      <div className="mb-4">
+      <div className="mb-3">
         <p className="text-sm text-gray-600 mb-1">Services:</p>
-        <p className="text-sm text-gray-800">
+        <p className="text-sm text-gray-800 leading-snug">
           {token.services || 'Service details loading...'}
         </p>
       </div>
 
-      <div className="mb-4">
+      <div className="mb-3">
         <p className="text-sm text-gray-600 mb-1">Description:</p>
-        <p className="text-sm text-gray-800 line-clamp-2">
+        <p className="text-sm text-gray-800 leading-snug line-clamp-2">
           {token.description || 'No additional description provided'}
         </p>
       </div>
 
       {isCampaignActive() && parseInt(token.availableSupply) > 0 && (
-        <div className="border-t pt-4">
+        <div className="border-t pt-3">
           <div className="flex items-center gap-2 mb-3">
             <label className="text-sm font-medium text-gray-700">Quantity:</label>
             <input
@@ -192,21 +232,21 @@ export function InvoiceTokenCard({ token, onBuySuccess, isRealToken = false }: I
           
           <div className="flex justify-between items-center mb-3">
             <span className="text-sm text-gray-600">Total Cost:</span>
-            <span className="font-semibold text-lg">{formatCurrency(calculateTotalPrice().toString())}</span>
+            <span className="font-semibold text-base">{formatCurrency(calculateTotalPrice().toString())}</span>
           </div>
 
           <button
             onClick={handleBuyTokens}
-            disabled={isLoading || !address}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            disabled={isLoading}
+            className="w-full bg-blue-600 text-white py-2 px-3 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {isLoading ? 'Buying...' : 'Buy Tokens'}
+            {address ? (isLoading ? 'Buying...' : 'Buy Tokens') : 'Connect Wallet'}
           </button>
         </div>
       )}
 
       {!isCampaignActive() && (
-        <div className="border-t pt-4">
+        <div className="border-t pt-3">
           <p className="text-sm text-gray-500 text-center">
             Campaign has ended
           </p>
@@ -214,7 +254,7 @@ export function InvoiceTokenCard({ token, onBuySuccess, isRealToken = false }: I
       )}
 
       {parseInt(token.availableSupply) === 0 && (
-        <div className="border-t pt-4">
+        <div className="border-t pt-3">
           <p className="text-sm text-gray-500 text-center">
             All tokens have been sold
           </p>

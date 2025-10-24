@@ -358,7 +358,7 @@ export function Marketplace() {
               
               return (
                 <InvoiceTokenCard
-                  key={token.id}
+                  key={`${token.id}-${token.owner}-${token.invoiceNumber || ''}`}
                   token={token}
                   onBuySuccess={handleRefreshTokens}
                   isRealToken={isRealToken}
