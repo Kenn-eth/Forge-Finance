@@ -141,7 +141,6 @@ export function useMarketplaceInvoices() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const publicClient = usePublicClient();
-  // Guard against race conditions: only latest fetch can update state
   const fetchSeqRef = useRef(0);
 
   // Get the current nonce (total number of invoices created)
@@ -149,18 +148,19 @@ export function useMarketplaceInvoices() {
     address: CONTRACTS.INVOICE_TOKEN as `0x${string}`,
     abi: INVOICE_TOKEN_ABI,
     functionName: 'nonce',
-    // Only query when we have a valid contract address
     query: { enabled: Boolean(CONTRACTS.INVOICE_TOKEN) },
   });
 
-  // Watch for new blocks to refresh data
-  const { data: blockNumber } = useBlockNumber({ watch: true });
+  // Remove block watching to prevent excessive refetching and React hooks issues
 
   const fetchInvoices = useCallback(async () => {
     const seq = ++fetchSeqRef.current;
     try {
       setError(null);
-      setIsLoading(true);
+      // Only set loading if we don't have invoices yet to prevent flicker
+      if (invoices.length === 0) {
+        setIsLoading(true);
+      }
 
       // First, fetch from database (fast)
       let dbInvoices: InvoiceApiRow[] = [];
@@ -434,11 +434,15 @@ export function useMarketplaceInvoices() {
       setIsLoading(false);
       }
     }
-  }, [nonce, publicClient]);
+  }, [nonce, publicClient, invoices.length]);
 
+  // Initial fetch
   useEffect(() => {
     fetchInvoices();
-  }, [fetchInvoices, blockNumber]);
+  }, [fetchInvoices]);
+
+  // Remove block-based refresh to avoid React hooks rule violations
+  // Users can manually refresh using the refresh button
 
   const refresh = useCallback(async () => {
     await fetchInvoices();
