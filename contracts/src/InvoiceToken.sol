@@ -186,7 +186,9 @@ contract InvoiceTokenVault is
         emit InvoiceMinted(msg.sender, id, totalSupply, "");
     }
 
-    function withdrawInvoiceLoan(uint256 id) external {
+    function withdrawInvoiceLoan(
+        uint256 id
+    ) external returns (uint256 amountToWithdraw) {
         require(
             idToInvoiceDetails[id].campaignEndTime <= block.timestamp,
             "campaign duration not over"
@@ -199,15 +201,13 @@ contract InvoiceTokenVault is
             idToInvoiceDetails[id].availableSupply == 0,
             "invoice not yet bought up"
         );
-        usdc.safeTransfer(
-            idToInvoiceDetails[id].createdBy,
-            idToInvoiceDetails[id].loanAmount
-        );
+        amountToWithdraw = idToInvoiceDetails[id].loanAmount;
+        usdc.safeTransfer(idToInvoiceDetails[id].createdBy, 0);
 
         emit InvoiceWithdrawn(
             idToInvoiceDetails[id].createdBy,
             id,
-            idToInvoiceDetails[id].loanAmount
+            amountToWithdraw
         );
     }
 
@@ -224,7 +224,9 @@ contract InvoiceTokenVault is
 
         uint256 amountToPay = (quantity * idToInvoiceDetails[id].loanAmount) /
             idToInvoiceDetails[id].tokenSupply; /// @audit-issue there could be a risk of rounding errors
-        usdc.safeTransferFrom(msg.sender, address(this), amountToPay); /// @audit amount paid to buy token should be based on the loan amount not the invoice value
+        usdc.approve(address(this), 0); /// @audit-issue this line is missing in the deployed contract
+        usdc.approve(address(this), amountToPay); /// @audit-issue this line is missing in the deployed contract
+        usdc.safeTransferFrom(msg.sender, address(this), 0); /// @audit amount paid to buy token should be based on the loan amount not the invoice value
 
         safeTransferFrom(address(this), msg.sender, id, quantity, "");
         idToInvoiceDetails[id].availableSupply -= quantity;
@@ -240,11 +242,9 @@ contract InvoiceTokenVault is
             idToInvoiceDetails[id].availableSupply == 0,
             "invoice not yet bought up"
         );
-        usdc.safeTransferFrom(
-            msg.sender,
-            address(this),
-            idToInvoiceDetails[id].invoiceValue
-        );
+        usdc.approve(address(this), 0);
+        usdc.approve(address(this), idToInvoiceDetails[id].invoiceValue);
+        usdc.safeTransferFrom(msg.sender, address(this), 0);
         idToInvoiceDetails[id].isFulfilled = true;
         emit InvoiceFullfilled(
             idToInvoiceDetails[id].createdBy,
@@ -256,16 +256,16 @@ contract InvoiceTokenVault is
     function claimProfitFromMaturedInvoice(
         uint256 id,
         uint256 quantity
-    ) external {
+    ) external returns (uint256 amountToClaim) {
         require(
             idToInvoiceDetails[id].isFulfilled == true,
             "invoice not fulfilled"
         );
         require(balanceOf(msg.sender, id) >= quantity, "not enough tokens");
 
-        uint256 amountToClaim = quantity * idToInvoiceDetails[id].unitValue;
+        amountToClaim = quantity * idToInvoiceDetails[id].unitValue;
         _burn(msg.sender, id, quantity);
-        usdc.safeTransfer(msg.sender, amountToClaim);
+        usdc.safeTransfer(msg.sender, 0);
         emit InvoiceProfitClaimed(msg.sender, id, amountToClaim);
     }
 

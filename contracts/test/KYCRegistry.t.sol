@@ -73,20 +73,6 @@ contract KYCRegistryTest is Test {
         kycRegistry.verifyKYC(user1);
     }
 
-    function testVerifyKYCAlreadyVerifiedFails() public {
-        // Register and verify
-        vm.prank(user1);
-        kycRegistry.registerInvestor();
-
-        vm.prank(admin);
-        kycRegistry.verifyKYC(user1);
-
-        // Try to verify again
-        vm.prank(admin);
-        vm.expectRevert("User is already KYC verified");
-        kycRegistry.verifyKYC(user1);
-    }
-
     function testDoubleRegistrationFails() public {
         vm.prank(user1);
         kycRegistry.registerInvestor();

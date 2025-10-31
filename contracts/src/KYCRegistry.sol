@@ -56,16 +56,11 @@ contract KYCRegistry is
     }
 
     function verifyKYC(address user) external {
-        /* note for the next version
         require(
             registeredBusinesses[user] || registeredInvestors[user],
             "User must be registered before KYC verification"
         );
-        require(
-            !isKYCVerified[user],
-            "User is already KYC verified"
-        );
-         */
+        require(!isKYCVerified[user], "User is already KYC verified");
         isKYCVerified[user] = true;
     }
 
